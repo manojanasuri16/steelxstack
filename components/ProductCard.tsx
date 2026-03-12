@@ -36,11 +36,20 @@ export default function ProductCard({
   currency,
 }: ProductCardProps) {
   const [showLinks, setShowLinks] = useState(false);
+  const [showWorn, setShowWorn] = useState(false);
+
   const hasImage =
     product.image &&
     (product.image.startsWith("http") ||
       product.image.startsWith("/uploads/"));
+  const hasWornImage =
+    product.wornImage &&
+    (product.wornImage.startsWith("http") ||
+      product.wornImage.startsWith("/uploads/"));
   const singleLink = product.buyLinks.length === 1;
+
+  const displayImage = showWorn && hasWornImage ? product.wornImage : product.image;
+  const hasDisplayImage = showWorn && hasWornImage ? true : hasImage;
 
   return (
     <motion.div
@@ -57,13 +66,23 @@ export default function ProductCard({
         </div>
       )}
 
+      {/* Image Toggle Button */}
+      {hasImage && hasWornImage && (
+        <button
+          onClick={() => setShowWorn(!showWorn)}
+          className="absolute top-3 right-3 z-10 bg-dark-900/70 backdrop-blur-sm text-white text-[10px] font-medium px-2.5 py-1 rounded-full border border-glass-border hover:bg-dark-900/90 transition-colors"
+        >
+          {showWorn ? "Product" : "On Me"}
+        </button>
+      )}
+
       {/* Product Image */}
       <div className="aspect-square bg-dark-700 relative overflow-hidden">
-        {hasImage ? (
+        {hasDisplayImage ? (
           <img
-            src={product.image}
+            src={displayImage}
             alt={product.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-opacity duration-300"
             loading="lazy"
           />
         ) : (

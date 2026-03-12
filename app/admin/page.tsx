@@ -11,6 +11,7 @@ interface Creator {
   profileImage: string;
   ctaPrimary: { label: string; href: string };
   ctaSecondary: { label: string; href: string };
+  ctaTertiary?: { label: string; href: string };
 }
 
 interface App {
@@ -34,6 +35,7 @@ interface Product {
   name: string;
   category: string;
   image: string;
+  wornImage?: string;
   buyLinks: BuyLink[];
   note: string;
   price?: number;
@@ -44,6 +46,7 @@ interface SocialLink {
   id: string;
   label: string;
   url: string;
+  icon?: string;
 }
 
 interface ContactInfo {
@@ -81,6 +84,8 @@ function Toast({ message, type, onClose }: { message: string; type: "success" | 
 // ─── Login ───
 function LoginForm({ onLogin }: { onLogin: () => void }) {
   const [pw, setPw] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [needTotp, setNeedTotp] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -88,10 +93,19 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw, ...(needTotp ? { totpCode } : {}) }),
+    });
+    const data = await res.json();
     setLoading(false);
+    if (data.requireTotp) {
+      setNeedTotp(true);
+      return;
+    }
     if (res.ok) onLogin();
-    else setError("Invalid password");
+    else setError(data.error || "Invalid credentials");
   };
 
   return (
@@ -102,13 +116,22 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
             <span className="text-2xl font-bold text-neon">SX</span>
           </div>
           <h1 className="text-xl font-bold text-white">Admin Panel</h1>
-          <p className="text-gray-500 text-sm mt-1">Enter your admin password</p>
+          <p className="text-gray-500 text-sm mt-1">{needTotp ? "Enter your authenticator code" : "Enter your admin password"}</p>
         </div>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 mb-3" />
+        {!needTotp ? (
+          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 mb-3" />
+        ) : (
+          <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={totpCode} onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code" className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 mb-3 text-center text-2xl tracking-[0.5em] font-mono" />
+        )}
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50">
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Verifying..." : needTotp ? "Verify" : "Login"}
         </button>
+        {needTotp && (
+          <button type="button" onClick={() => { setNeedTotp(false); setTotpCode(""); setError(""); }} className="w-full mt-2 text-gray-400 text-sm hover:text-white transition-colors">
+            Back to password
+          </button>
+        )}
       </form>
     </div>
   );
@@ -169,6 +192,8 @@ function CreatorTab({ creator, onChange }: { creator: Creator; onChange: (c: Cre
         <Field label="Primary CTA Link"><Input value={creator.ctaPrimary.href} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, href: v })} /></Field>
         <Field label="Secondary CTA Label"><Input value={creator.ctaSecondary.label} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, label: v })} /></Field>
         <Field label="Secondary CTA Link"><Input value={creator.ctaSecondary.href} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, href: v })} /></Field>
+        <Field label="Third CTA Label (optional)"><Input value={creator.ctaTertiary?.label || ""} onChange={(v) => update("ctaTertiary", { label: v, href: creator.ctaTertiary?.href || "#contact" })} placeholder="Connect With Me" /></Field>
+        <Field label="Third CTA Link"><Input value={creator.ctaTertiary?.href || ""} onChange={(v) => update("ctaTertiary", { ...creator.ctaTertiary, label: creator.ctaTertiary?.label || "Connect With Me", href: v })} placeholder="#contact" /></Field>
       </div>
     </div>
   );
@@ -240,6 +265,15 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
 
   const updateProduct = (id: string, u: Partial<Product>) => onChangeProducts(products.map((p) => (p.id === id ? { ...p, ...u } : p)));
   const deleteProduct = (id: string) => { onChangeProducts(products.filter((p) => p.id !== id)); setEditing(null); };
+  const moveProduct = (id: string, direction: "up" | "down") => {
+    const idx = products.findIndex((p) => p.id === id);
+    if (idx < 0) return;
+    const target = direction === "up" ? idx - 1 : idx + 1;
+    if (target < 0 || target >= products.length) return;
+    const reordered = [...products];
+    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
+    onChangeProducts(reordered);
+  };
 
   const addProduct = () => {
     const np: Product = { id: `prod-${Date.now()}`, name: "", category: categories[0] || "Other", image: "", buyLinks: [{ platform: "Amazon", url: "" }], note: "" };
@@ -304,6 +338,10 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
         <div key={product.id} className="glass rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === product.id ? null : product.id)}>
             <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => moveProduct(product.id, "up")} disabled={products.indexOf(product) === 0} className="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5">&#9650;</button>
+                <button onClick={() => moveProduct(product.id, "down")} disabled={products.indexOf(product) === products.length - 1} className="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5">&#9660;</button>
+              </div>
               {product.image && (product.image.startsWith("http") || product.image.startsWith("/uploads/")) ? (
                 <img src={product.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
               ) : (
@@ -350,7 +388,10 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
                   <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
                   <Field label="Price"><Input value={product.price?.toString() || ""} onChange={(v) => updateProduct(product.id, { price: v ? parseFloat(v) || undefined : undefined })} placeholder="e.g. 1299" /></Field>
                 </div>
-                <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
+                <div className="grid sm:grid-cols-2 gap-x-6">
+                  <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
+                  <ImageUpload value={product.wornImage || ""} onChange={(v) => updateProduct(product.id, { wornImage: v || undefined })} label="Worn / On Me Image" />
+                </div>
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <Field label="Category">
                     <select value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
@@ -418,20 +459,139 @@ function ContactsTab({ contacts, onChange }: { contacts: ContactInfo; onChange: 
         <h3 className="text-lg font-bold text-white mb-4">Social Links</h3>
         <p className="text-gray-500 text-xs mb-4">Paste your profile URL and the platform name + icon will be auto-detected.</p>
         {contacts.socials.map((social) => (
-          <div key={social.id} className="flex gap-2 mb-3 items-center">
-            {social.url && (
-              <img src={`https://www.google.com/s2/favicons?domain=${(() => { try { return new URL(social.url).hostname; } catch { return ""; }})()}&sz=32`} alt="" className="w-6 h-6 rounded-sm shrink-0" />
-            )}
-            <input value={social.url} onChange={(e) => {
-              const url = e.target.value;
-              const autoLabel = detectLabel(url);
-              updateSocial(social.id, { url, ...(autoLabel ? { label: autoLabel } : {}) });
-            }} placeholder="https://instagram.com/yourhandle" className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
-            <input value={social.label} onChange={(e) => updateSocial(social.id, { label: e.target.value })} placeholder="Label" className="w-28 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
-            <button onClick={() => removeSocial(social.id)} className="text-red-400 hover:text-red-300 text-lg px-1">x</button>
+          <div key={social.id} className="glass rounded-xl p-4 mb-3">
+            <div className="flex gap-2 mb-3 items-center">
+              {(social.icon && (social.icon.startsWith("http") || social.icon.startsWith("/uploads/"))) ? (
+                <img src={social.icon} alt="" className="w-8 h-8 rounded-sm shrink-0 object-cover" />
+              ) : social.url ? (
+                <img src={`https://www.google.com/s2/favicons?domain=${(() => { try { return new URL(social.url).hostname; } catch { return ""; }})()}&sz=32`} alt="" className="w-8 h-8 rounded-sm shrink-0" />
+              ) : null}
+              <input value={social.url} onChange={(e) => {
+                const url = e.target.value;
+                const autoLabel = detectLabel(url);
+                updateSocial(social.id, { url, ...(autoLabel ? { label: autoLabel } : {}) });
+              }} placeholder="https://instagram.com/yourhandle" className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+              <input value={social.label} onChange={(e) => updateSocial(social.id, { label: e.target.value })} placeholder="Label" className="w-28 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+              <button onClick={() => removeSocial(social.id)} className="text-red-400 hover:text-red-300 text-lg px-1">x</button>
+            </div>
+            <ImageUpload value={social.icon || ""} onChange={(v) => updateSocial(social.id, { icon: v || undefined })} label="Custom Icon (optional — auto-detected if empty)" />
           </div>
         ))}
         <button onClick={addSocial} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Social Link</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Security Tab ───
+function SecurityTab({ showToast }: { showToast: (msg: string, type: "success" | "error") => void }) {
+  const [totpEnabled, setTotpEnabled] = useState<boolean | null>(null);
+  const [setupData, setSetupData] = useState<{ secret: string; qrDataUrl: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/totp?action=status").then((r) => r.json()).then((d) => setTotpEnabled(d.enabled)).catch(() => {});
+  }, []);
+
+  const startSetup = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/totp?action=setup");
+      if (res.ok) setSetupData(await res.json());
+    } finally { setLoading(false); }
+  };
+
+  const enableTotp = async () => {
+    if (!setupData || !code) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/totp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enable", secret: setupData.secret, code }),
+      });
+      if (res.ok) {
+        setTotpEnabled(true);
+        setSetupData(null);
+        setCode("");
+        showToast("MFA enabled successfully!", "success");
+      } else {
+        showToast("Invalid code, try again", "error");
+      }
+    } finally { setLoading(false); }
+  };
+
+  const disableTotp = async () => {
+    if (!code) { showToast("Enter your authenticator code to disable", "error"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/totp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable", code }),
+      });
+      if (res.ok) {
+        setTotpEnabled(false);
+        setCode("");
+        showToast("MFA disabled", "success");
+      } else {
+        showToast("Invalid code", "error");
+      }
+    } finally { setLoading(false); }
+  };
+
+  if (totpEnabled === null) return <div className="text-gray-500 text-center py-8">Loading...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Two-Factor Authentication (2FA)</h3>
+        <p className="text-gray-400 text-sm mb-4">Protect your admin panel with an authenticator app like Google Authenticator, Authy, or 1Password.</p>
+
+        <div className="flex items-center gap-3 mb-6">
+          <div className={`w-3 h-3 rounded-full ${totpEnabled ? "bg-green-500" : "bg-red-500"}`} />
+          <span className="text-white font-medium">{totpEnabled ? "MFA is enabled" : "MFA is not enabled"}</span>
+        </div>
+
+        {!totpEnabled && !setupData && (
+          <button onClick={startSetup} disabled={loading} className="px-6 py-2.5 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50 text-sm">
+            {loading ? "Loading..." : "Set Up Authenticator"}
+          </button>
+        )}
+
+        {setupData && (
+          <div className="space-y-4">
+            <div className="bg-dark-700 rounded-xl p-4 text-center">
+              <p className="text-gray-400 text-sm mb-3">Scan this QR code with your authenticator app:</p>
+              <img src={setupData.qrDataUrl} alt="QR Code" className="mx-auto w-48 h-48 rounded-lg" />
+              <p className="text-gray-500 text-xs mt-3">Or enter this key manually:</p>
+              <p className="text-neon font-mono text-sm mt-1 break-all select-all">{setupData.secret}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Enter the 6-digit code to verify:</label>
+              <div className="flex gap-2">
+                <input type="text" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-center text-lg font-mono tracking-[0.3em] placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+                <button onClick={enableTotp} disabled={code.length !== 6 || loading} className="px-6 py-2 rounded-lg font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50 text-sm">
+                  {loading ? "..." : "Verify & Enable"}
+                </button>
+              </div>
+            </div>
+            <button onClick={() => { setSetupData(null); setCode(""); }} className="text-gray-400 text-sm hover:text-white transition-colors">Cancel</button>
+          </div>
+        )}
+
+        {totpEnabled && (
+          <div className="space-y-3">
+            <p className="text-gray-400 text-sm">To disable MFA, enter your current authenticator code:</p>
+            <div className="flex gap-2">
+              <input type="text" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-center text-lg font-mono tracking-[0.3em] placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+              <button onClick={disableTotp} disabled={code.length !== 6 || loading} className="px-6 py-2 rounded-lg font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50 text-sm">
+                {loading ? "..." : "Disable MFA"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -443,6 +603,7 @@ const TABS = [
   { id: "apps", label: "Apps" },
   { id: "gear", label: "Gear" },
   { id: "contacts", label: "Contact" },
+  { id: "security", label: "Security" },
 ] as const;
 
 export default function AdminPage() {
@@ -521,6 +682,7 @@ export default function AdminPage() {
           />
         )}
         {activeTab === "contacts" && <ContactsTab contacts={data.contacts} onChange={(contacts) => setData({ ...data, contacts })} />}
+        {activeTab === "security" && <SecurityTab showToast={showToast} />}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-40 glass border-t border-glass-border">

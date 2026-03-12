@@ -45,6 +45,8 @@ interface StorefrontPageProps {
   contacts: ContactInfo;
 }
 
+const PRODUCTS_PER_PAGE = 8;
+
 export default function StorefrontPage({
   creator,
   apps,
@@ -55,11 +57,18 @@ export default function StorefrontPage({
 }: StorefrontPageProps) {
   const allCategories = ["All", ...categories];
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredProducts =
     activeCategory === "All"
       ? products
       : products.filter((p) => p.category === activeCategory);
+
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE
+  );
 
   const hasContacts =
     contacts.phone || contacts.email || contacts.socials.length > 0;
@@ -124,6 +133,14 @@ export default function StorefrontPage({
             >
               {creator.ctaSecondary.label}
             </a>
+            {creator.ctaTertiary && (
+              <a
+                href={creator.ctaTertiary.href}
+                className="px-8 py-3 sm:py-3.5 rounded-xl font-bold text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/10 transition-colors text-sm sm:text-base"
+              >
+                {creator.ctaTertiary.label}
+              </a>
+            )}
           </div>
         </motion.div>
       </section>
@@ -159,7 +176,7 @@ export default function StorefrontPage({
             {allCategories.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setActiveCategory(cat)}
+                onClick={() => { setActiveCategory(cat); setCurrentPage(1); }}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
                   activeCategory === cat
                     ? "bg-neon text-dark-900"
@@ -176,7 +193,7 @@ export default function StorefrontPage({
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
           >
             <AnimatePresence mode="popLayout">
-              {filteredProducts.map((product, i) => (
+              {paginatedProducts.map((product, i) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -186,6 +203,39 @@ export default function StorefrontPage({
               ))}
             </AnimatePresence>
           </motion.div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                &larr; Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
+                    currentPage === page
+                      ? "bg-neon text-dark-900"
+                      : "glass text-gray-300 hover:text-white"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                Next &rarr;
+              </button>
+            </div>
+          )}
         </SectionWrapper>
       )}
 
@@ -247,7 +297,7 @@ export default function StorefrontPage({
                     className="glass rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 transition-colors group"
                   >
                     <img
-                      src={getDomainIcon(social.url)}
+                      src={social.icon && (social.icon.startsWith("http") || social.icon.startsWith("/uploads/")) ? social.icon : getDomainIcon(social.url)}
                       alt=""
                       className="w-6 h-6 rounded-sm shrink-0"
                     />

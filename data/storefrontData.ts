@@ -5,6 +5,7 @@ export interface Creator {
   profileImage: string;
   ctaPrimary: { label: string; href: string };
   ctaSecondary: { label: string; href: string };
+  ctaTertiary?: { label: string; href: string };
 }
 
 export interface App {
@@ -28,6 +29,7 @@ export interface Product {
   name: string;
   category: string;
   image: string;
+  wornImage?: string;
   buyLinks: BuyLink[];
   note: string;
   price?: number;
@@ -38,6 +40,7 @@ export interface SocialLink {
   id: string;
   label: string;
   url: string;
+  icon?: string;
 }
 
 export interface ContactInfo {
@@ -53,6 +56,7 @@ export const creator: Creator = {
   profileImage: "/profile.jpg",
   ctaPrimary: { label: "Train With Me", href: "#apps" },
   ctaSecondary: { label: "Shop My Gear", href: "#gear" },
+  ctaTertiary: { label: "Connect With Me", href: "#contact" },
 };
 
 export const apps: App[] = [
