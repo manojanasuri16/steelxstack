@@ -7,9 +7,6 @@ const SECRET = new TextEncoder().encode(
 
 const COOKIE_NAME = "sx-admin-token";
 
-// Session version — stored in Redis. Incrementing invalidates all tokens.
-let cachedSessionVersion: number | null = null;
-
 async function getRedis() {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -18,14 +15,13 @@ async function getRedis() {
   return new Redis({ url, token });
 }
 
+// Always read from Redis — no in-memory cache (serverless instances are ephemeral)
 async function getSessionVersion(): Promise<number> {
-  if (cachedSessionVersion !== null) return cachedSessionVersion;
   try {
     const redis = await getRedis();
     if (redis) {
       const v = await redis.get<number>("admin-session-version");
-      cachedSessionVersion = v ?? 1;
-      return cachedSessionVersion;
+      return v ?? 1;
     }
   } catch {}
   return 1;
@@ -37,7 +33,6 @@ export async function rotateSessionVersion(): Promise<void> {
     if (redis) {
       const current = await redis.get<number>("admin-session-version") ?? 1;
       await redis.set("admin-session-version", current + 1);
-      cachedSessionVersion = current + 1;
     }
   } catch {}
 }
@@ -58,9 +53,9 @@ export async function login(password: string): Promise<string | null> {
 export async function verifyToken(token: string): Promise<boolean> {
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    // Check session version
+    // Always check session version — tokens without sv are invalid once version > 1
     const sv = await getSessionVersion();
-    if (payload.sv !== undefined && payload.sv !== sv) return false;
+    if (sv > 1 && payload.sv !== sv) return false;
     return true;
   } catch {
     return false;
