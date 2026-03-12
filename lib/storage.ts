@@ -3,21 +3,26 @@ import {
   creator as defaultCreator,
   apps as defaultApps,
   products as defaultProducts,
+  contacts as defaultContacts,
 } from "@/data/storefrontData";
-import type { Creator, App, Product } from "@/data/storefrontData";
+import type { Creator, App, Product, ContactInfo } from "@/data/storefrontData";
 
 export interface StorefrontData {
   creator: Creator;
   apps: App[];
   products: Product[];
   categories: string[];
+  currency: string;
+  contacts: ContactInfo;
 }
 
 const DEFAULT_DATA: StorefrontData = {
   creator: defaultCreator,
   apps: defaultApps,
   products: defaultProducts,
-  categories: ["Shoes", "Gym Wear", "Accessories", "Watches", "Essentials"],
+  categories: ["Shoes", "Gym Wear", "Accessories", "Watches", "Supplements", "Essentials"],
+  currency: "\u20B9",
+  contacts: defaultContacts,
 };
 
 function getRedis(): Redis | null {

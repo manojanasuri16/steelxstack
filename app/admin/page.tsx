@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import ImageUpload from "@/components/ImageUpload";
 
+// ─── Types ───
 interface Creator {
   name: string;
   tagline: string;
@@ -23,16 +24,32 @@ interface App {
   highlight?: boolean;
 }
 
+interface BuyLink {
+  platform: string;
+  url: string;
+}
+
 interface Product {
   id: string;
   name: string;
   category: string;
   image: string;
-  affiliateUrl: string;
-  platform: string;
+  buyLinks: BuyLink[];
   note: string;
-  price?: string;
+  price?: number;
   featured?: boolean;
+}
+
+interface SocialLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
+interface ContactInfo {
+  phone?: string;
+  email?: string;
+  socials: SocialLink[];
 }
 
 interface StorefrontData {
@@ -40,30 +57,22 @@ interface StorefrontData {
   apps: App[];
   products: Product[];
   categories: string[];
+  currency: string;
+  contacts: ContactInfo;
 }
 
+const CURRENCIES = [
+  { symbol: "\u20B9", label: "INR (\u20B9)" },
+  { symbol: "$", label: "USD ($)" },
+  { symbol: "\u20AC", label: "EUR (\u20AC)" },
+  { symbol: "\u00A3", label: "GBP (\u00A3)" },
+];
+
 // ─── Toast ───
-function Toast({
-  message,
-  type,
-  onClose,
-}: {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3000);
-    return () => clearTimeout(t);
-  }, [onClose]);
+function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div
-      className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-lg ${
-        type === "success"
-          ? "bg-green-500/90 text-white"
-          : "bg-red-500/90 text-white"
-      }`}
-    >
+    <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-lg ${type === "success" ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"}`}>
       {message}
     </div>
   );
@@ -79,47 +88,25 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw }),
-    });
+    const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
     setLoading(false);
-    if (res.ok) {
-      onLogin();
-    } else {
-      setError("Invalid password");
-    }
+    if (res.ok) onLogin();
+    else setError("Invalid password");
   };
 
   return (
     <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="glass rounded-2xl p-8 w-full max-w-sm"
-      >
+      <form onSubmit={handleSubmit} className="glass rounded-2xl p-8 w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="w-16 h-16 rounded-full bg-dark-700 border border-neon/50 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl font-bold text-neon">SX</span>
           </div>
           <h1 className="text-xl font-bold text-white">Admin Panel</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Enter your admin password
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Enter your admin password</p>
         </div>
-        <input
-          type="password"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          placeholder="Password"
-          className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 mb-3"
-        />
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 mb-3" />
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50">
           {loading ? "Logging in..." : "Login"}
         </button>
       </form>
@@ -127,647 +114,325 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-// ─── Field helpers ───
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-400 mb-1.5">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
+// ─── Helpers ───
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="mb-4"><label className="block text-sm font-medium text-gray-400 mb-1.5">{label}</label>{children}</div>;
 }
 
-function Input({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50"
-    />
-  );
+function Input({ value, onChange, placeholder, type = "text" }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+  return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />;
 }
 
-function TextArea({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={3}
-      className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 resize-none"
-    />
-  );
+function TextArea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 resize-none" />;
 }
 
-function Toggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer">
-      <div
-        onClick={() => onChange(!checked)}
-        className={`w-10 h-6 rounded-full flex items-center px-1 transition-colors ${
-          checked ? "bg-neon" : "bg-dark-600"
-        }`}
-      >
-        <div
-          className={`w-4 h-4 rounded-full bg-white transition-transform ${
-            checked ? "translate-x-4" : "translate-x-0"
-          }`}
-        />
+      <div onClick={() => onChange(!checked)} className={`w-10 h-6 rounded-full flex items-center px-1 transition-colors ${checked ? "bg-neon" : "bg-dark-600"}`}>
+        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-4" : "translate-x-0"}`} />
       </div>
       <span className="text-sm text-gray-300">{label}</span>
     </label>
   );
 }
 
-// ─── URL Fetch Button ───
-function FetchButton({
-  url,
-  onFetched,
-}: {
-  url: string;
-  onFetched: (meta: {
-    title: string;
-    description: string;
-    image: string;
-    favicon: string;
-    siteName: string;
-    price: string;
-  }) => void;
-}) {
+function FetchButton({ url, onFetched }: { url: string; onFetched: (meta: { title: string; description: string; image: string; favicon: string; siteName: string; price: string }) => void }) {
   const [loading, setLoading] = useState(false);
-
   const handleFetch = async () => {
     if (!url) return;
     setLoading(true);
-    try {
-      const res = await fetch("/api/scrape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      if (res.ok) {
-        const meta = await res.json();
-        onFetched(meta);
-      }
-    } finally {
-      setLoading(false);
-    }
+    try { const res = await fetch("/api/scrape", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) }); if (res.ok) onFetched(await res.json()); } finally { setLoading(false); }
   };
-
   return (
-    <button
-      type="button"
-      onClick={handleFetch}
-      disabled={!url || loading}
-      className="px-3 py-2 text-xs font-medium bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan/30 transition-colors disabled:opacity-40 whitespace-nowrap"
-    >
-      {loading ? "Fetching..." : "Auto-Fill from URL"}
+    <button type="button" onClick={handleFetch} disabled={!url || loading} className="px-3 py-2 text-xs font-medium bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan/30 transition-colors disabled:opacity-40 whitespace-nowrap">
+      {loading ? "Fetching..." : "Auto-Fill"}
     </button>
   );
 }
 
 // ─── Creator Tab ───
-function CreatorTab({
-  creator,
-  onChange,
-}: {
-  creator: Creator;
-  onChange: (c: Creator) => void;
-}) {
-  const update = (key: keyof Creator, value: unknown) =>
-    onChange({ ...creator, [key]: value });
-
+function CreatorTab({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
+  const update = (key: keyof Creator, value: unknown) => onChange({ ...creator, [key]: value });
   return (
     <div className="glass rounded-2xl p-6">
       <h3 className="text-lg font-bold text-white mb-4">Creator Profile</h3>
       <div className="grid sm:grid-cols-2 gap-x-6">
-        <Field label="Name">
-          <Input
-            value={creator.name}
-            onChange={(v) => update("name", v)}
-          />
-        </Field>
-        <Field label="Tagline">
-          <Input
-            value={creator.tagline}
-            onChange={(v) => update("tagline", v)}
-          />
-        </Field>
+        <Field label="Name"><Input value={creator.name} onChange={(v) => update("name", v)} /></Field>
+        <Field label="Tagline"><Input value={creator.tagline} onChange={(v) => update("tagline", v)} /></Field>
       </div>
-      <Field label="Bio">
-        <TextArea
-          value={creator.bio}
-          onChange={(v) => update("bio", v)}
-        />
-      </Field>
-      <ImageUpload
-        value={creator.profileImage}
-        onChange={(v) => update("profileImage", v)}
-        label="Profile Image"
-        shape="circle"
-      />
+      <Field label="Bio"><TextArea value={creator.bio} onChange={(v) => update("bio", v)} /></Field>
+      <ImageUpload value={creator.profileImage} onChange={(v) => update("profileImage", v)} label="Profile Image" shape="circle" />
       <div className="grid sm:grid-cols-2 gap-x-6">
-        <Field label="Primary CTA Label">
-          <Input
-            value={creator.ctaPrimary.label}
-            onChange={(v) =>
-              update("ctaPrimary", { ...creator.ctaPrimary, label: v })
-            }
-          />
-        </Field>
-        <Field label="Primary CTA Link">
-          <Input
-            value={creator.ctaPrimary.href}
-            onChange={(v) =>
-              update("ctaPrimary", { ...creator.ctaPrimary, href: v })
-            }
-          />
-        </Field>
-        <Field label="Secondary CTA Label">
-          <Input
-            value={creator.ctaSecondary.label}
-            onChange={(v) =>
-              update("ctaSecondary", { ...creator.ctaSecondary, label: v })
-            }
-          />
-        </Field>
-        <Field label="Secondary CTA Link">
-          <Input
-            value={creator.ctaSecondary.href}
-            onChange={(v) =>
-              update("ctaSecondary", { ...creator.ctaSecondary, href: v })
-            }
-          />
-        </Field>
+        <Field label="Primary CTA Label"><Input value={creator.ctaPrimary.label} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, label: v })} /></Field>
+        <Field label="Primary CTA Link"><Input value={creator.ctaPrimary.href} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, href: v })} /></Field>
+        <Field label="Secondary CTA Label"><Input value={creator.ctaSecondary.label} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, label: v })} /></Field>
+        <Field label="Secondary CTA Link"><Input value={creator.ctaSecondary.href} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, href: v })} /></Field>
       </div>
     </div>
   );
 }
 
 // ─── Apps Tab ───
-function AppsTab({
-  apps,
-  onChange,
-}: {
-  apps: App[];
-  onChange: (a: App[]) => void;
-}) {
+function AppsTab({ apps, onChange }: { apps: App[]; onChange: (a: App[]) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
-
-  const updateApp = (id: string, updates: Partial<App>) => {
-    onChange(apps.map((a) => (a.id === id ? { ...a, ...updates } : a)));
-  };
-
-  const deleteApp = (id: string) => {
-    onChange(apps.filter((a) => a.id !== id));
-    setEditing(null);
-  };
-
-  const addApp = () => {
-    const newApp: App = {
-      id: `app-${Date.now()}`,
-      name: "",
-      logo: "",
-      description: "",
-      profileUrl: "",
-    };
-    onChange([...apps, newApp]);
-    setEditing(newApp.id);
-  };
+  const updateApp = (id: string, u: Partial<App>) => onChange(apps.map((a) => (a.id === id ? { ...a, ...u } : a)));
+  const deleteApp = (id: string) => { onChange(apps.filter((a) => a.id !== id)); setEditing(null); };
+  const addApp = () => { const n: App = { id: `app-${Date.now()}`, name: "", logo: "", description: "", profileUrl: "" }; onChange([...apps, n]); setEditing(n.id); };
 
   return (
     <div className="space-y-4">
       {apps.map((app) => (
         <div key={app.id} className="glass rounded-2xl overflow-hidden">
-          <div
-            className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
-            onClick={() =>
-              setEditing(editing === app.id ? null : app.id)
-            }
-          >
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === app.id ? null : app.id)}>
             <div className="flex items-center gap-3">
-              {app.logo ? (
-                <img
-                  src={app.logo}
-                  alt=""
-                  className="w-10 h-10 rounded-lg object-cover bg-dark-700"
-                />
+              {app.logo && (app.logo.startsWith("http") || app.logo.startsWith("/uploads/")) ? (
+                <img src={app.logo} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
               ) : (
-                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-neon font-bold">
-                  {app.name?.charAt(0) || "?"}
-                </div>
+                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-neon font-bold">{app.name?.charAt(0) || "?"}</div>
               )}
               <div>
-                <p className="text-white font-medium">
-                  {app.name || "New App"}
-                </p>
-                <p className="text-gray-500 text-xs">
-                  {app.profileUrl || "No URL set"}
-                </p>
+                <p className="text-white font-medium">{app.name || "New App"}</p>
+                <p className="text-gray-500 text-xs">{app.profileUrl || "No URL set"}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {app.highlight && (
-                <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">
-                  Recommended
-                </span>
-              )}
-              <span className="text-gray-500 text-sm">
-                {editing === app.id ? "\u25B2" : "\u25BC"}
-              </span>
+              {app.highlight && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Recommended</span>}
+              <span className="text-gray-500 text-sm">{editing === app.id ? "\u25B2" : "\u25BC"}</span>
             </div>
           </div>
-
           {editing === app.id && (
             <div className="p-4 pt-0 border-t border-glass-border">
-              <div className="pt-4 space-y-0">
+              <div className="pt-4">
                 <div className="flex gap-2 items-end mb-4">
-                  <div className="flex-1">
-                    <Field label="Profile / Website URL">
-                      <Input
-                        value={app.profileUrl}
-                        onChange={(v) =>
-                          updateApp(app.id, { profileUrl: v })
-                        }
-                        placeholder="https://..."
-                      />
-                    </Field>
-                  </div>
-                  <div className="mb-4">
-                    <FetchButton
-                      url={app.profileUrl}
-                      onFetched={(meta) =>
-                        updateApp(app.id, {
-                          name: meta.title || app.name,
-                          description:
-                            meta.description || app.description,
-                          logo:
-                            meta.favicon || meta.image || app.logo,
-                        })
-                      }
-                    />
-                  </div>
+                  <div className="flex-1"><Field label="Profile / Website URL"><Input value={app.profileUrl} onChange={(v) => updateApp(app.id, { profileUrl: v })} placeholder="https://..." /></Field></div>
+                  <div className="mb-4"><FetchButton url={app.profileUrl} onFetched={(m) => updateApp(app.id, { name: m.title || app.name, description: m.description || app.description, logo: m.favicon || m.image || app.logo })} /></div>
                 </div>
-                <Field label="App Name">
-                  <Input
-                    value={app.name}
-                    onChange={(v) =>
-                      updateApp(app.id, { name: v })
-                    }
-                  />
-                </Field>
-                <ImageUpload
-                  value={app.logo}
-                  onChange={(v) => updateApp(app.id, { logo: v })}
-                  label="App Logo / Icon"
-                />
-                <Field label="Description">
-                  <TextArea
-                    value={app.description}
-                    onChange={(v) =>
-                      updateApp(app.id, { description: v })
-                    }
-                  />
-                </Field>
+                <Field label="App Name"><Input value={app.name} onChange={(v) => updateApp(app.id, { name: v })} /></Field>
+                <ImageUpload value={app.logo} onChange={(v) => updateApp(app.id, { logo: v })} label="App Logo / Icon" />
+                <Field label="Description"><TextArea value={app.description} onChange={(v) => updateApp(app.id, { description: v })} /></Field>
                 <div className="grid sm:grid-cols-2 gap-x-6">
-                  <Field label="Affiliate URL (optional)">
-                    <Input
-                      value={app.affiliateUrl || ""}
-                      onChange={(v) =>
-                        updateApp(app.id, {
-                          affiliateUrl: v || undefined,
-                        })
-                      }
-                    />
-                  </Field>
-                  <Field label="Promo Code (optional)">
-                    <Input
-                      value={app.promoCode || ""}
-                      onChange={(v) =>
-                        updateApp(app.id, {
-                          promoCode: v || undefined,
-                        })
-                      }
-                    />
-                  </Field>
+                  <Field label="Affiliate URL (optional)"><Input value={app.affiliateUrl || ""} onChange={(v) => updateApp(app.id, { affiliateUrl: v || undefined })} /></Field>
+                  <Field label="Promo Code (optional)"><Input value={app.promoCode || ""} onChange={(v) => updateApp(app.id, { promoCode: v || undefined })} /></Field>
                 </div>
                 <div className="flex items-center justify-between pt-2">
-                  <Toggle
-                    checked={!!app.highlight}
-                    onChange={(v) =>
-                      updateApp(app.id, { highlight: v })
-                    }
-                    label="Show as Recommended"
-                  />
-                  <button
-                    onClick={() => deleteApp(app.id)}
-                    className="text-red-400 text-sm hover:text-red-300 transition-colors"
-                  >
-                    Delete App
-                  </button>
+                  <Toggle checked={!!app.highlight} onChange={(v) => updateApp(app.id, { highlight: v })} label="Show as Recommended" />
+                  <button onClick={() => deleteApp(app.id)} className="text-red-400 text-sm hover:text-red-300">Delete App</button>
                 </div>
               </div>
             </div>
           )}
         </div>
       ))}
-
-      <button
-        onClick={addApp}
-        className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium"
-      >
-        + Add New App
-      </button>
+      <button onClick={addApp} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add New App</button>
     </div>
   );
 }
 
-// ─── Products Tab ───
-function GearTab({
-  products,
-  categories,
-  onChangeProducts,
-  onChangeCategories,
-}: {
-  products: Product[];
-  categories: string[];
-  onChangeProducts: (p: Product[]) => void;
-  onChangeCategories: (c: string[]) => void;
+// ─── Gear Tab ───
+function GearTab({ products, categories, currency, onChangeProducts, onChangeCategories, onChangeCurrency }: {
+  products: Product[]; categories: string[]; currency: string;
+  onChangeProducts: (p: Product[]) => void; onChangeCategories: (c: string[]) => void; onChangeCurrency: (c: string) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [newCat, setNewCat] = useState("");
 
-  const updateProduct = (id: string, updates: Partial<Product>) => {
-    onChangeProducts(
-      products.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
-  };
-
-  const deleteProduct = (id: string) => {
-    onChangeProducts(products.filter((p) => p.id !== id));
-    setEditing(null);
-  };
+  const updateProduct = (id: string, u: Partial<Product>) => onChangeProducts(products.map((p) => (p.id === id ? { ...p, ...u } : p)));
+  const deleteProduct = (id: string) => { onChangeProducts(products.filter((p) => p.id !== id)); setEditing(null); };
 
   const addProduct = () => {
-    const np: Product = {
-      id: `prod-${Date.now()}`,
-      name: "",
-      category: categories[0] || "Other",
-      image: "",
-      affiliateUrl: "",
-      platform: "Amazon",
-      note: "",
-    };
+    const np: Product = { id: `prod-${Date.now()}`, name: "", category: categories[0] || "Other", image: "", buyLinks: [{ platform: "Amazon", url: "" }], note: "" };
     onChangeProducts([...products, np]);
     setEditing(np.id);
   };
 
-  const addCategory = () => {
-    const trimmed = newCat.trim();
-    if (trimmed && !categories.includes(trimmed)) {
-      onChangeCategories([...categories, trimmed]);
-      setNewCat("");
-    }
-  };
+  const addCategory = () => { const t = newCat.trim(); if (t && !categories.includes(t)) { onChangeCategories([...categories, t]); setNewCat(""); } };
+  const removeCategory = (c: string) => onChangeCategories(categories.filter((x) => x !== c));
 
-  const removeCategory = (cat: string) => {
-    onChangeCategories(categories.filter((c) => c !== cat));
+  const updateBuyLink = (prodId: string, idx: number, field: keyof BuyLink, value: string) => {
+    const prod = products.find((p) => p.id === prodId);
+    if (!prod) return;
+    const links = [...prod.buyLinks];
+    links[idx] = { ...links[idx], [field]: value };
+    updateProduct(prodId, { buyLinks: links });
+  };
+  const addBuyLink = (prodId: string) => {
+    const prod = products.find((p) => p.id === prodId);
+    if (!prod) return;
+    updateProduct(prodId, { buyLinks: [...prod.buyLinks, { platform: "", url: "" }] });
+  };
+  const removeBuyLink = (prodId: string, idx: number) => {
+    const prod = products.find((p) => p.id === prodId);
+    if (!prod) return;
+    updateProduct(prodId, { buyLinks: prod.buyLinks.filter((_, i) => i !== idx) });
   };
 
   return (
     <div className="space-y-6">
-      {/* Categories Manager */}
-      <div className="glass rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-white mb-3">Categories</h3>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {categories.map((cat) => (
-            <span
-              key={cat}
-              className="flex items-center gap-1.5 bg-dark-700 text-gray-300 text-sm px-3 py-1.5 rounded-full"
-            >
-              {cat}
-              <button
-                onClick={() => removeCategory(cat)}
-                className="text-gray-500 hover:text-red-400 transition-colors ml-1"
-              >
-                x
+      {/* Currency + Categories */}
+      <div className="glass rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-white mb-2">Currency</h3>
+          <div className="flex gap-2">
+            {CURRENCIES.map((c) => (
+              <button key={c.symbol} onClick={() => onChangeCurrency(c.symbol)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${currency === c.symbol ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-300 hover:text-white"}`}>
+                {c.label}
               </button>
-            </span>
-          ))}
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            value={newCat}
-            onChange={(e) => setNewCat(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addCategory()}
-            placeholder="New category name..."
-            className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50"
-          />
-          <button
-            onClick={addCategory}
-            className="px-4 py-2 bg-neon text-dark-900 rounded-lg text-sm font-bold hover:brightness-110 transition-all"
-          >
-            Add
-          </button>
+        <div>
+          <h3 className="text-sm font-bold text-white mb-2">Categories</h3>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {categories.map((cat) => (
+              <span key={cat} className="flex items-center gap-1.5 bg-dark-700 text-gray-300 text-sm px-3 py-1.5 rounded-full">
+                {cat}
+                <button onClick={() => removeCategory(cat)} className="text-gray-500 hover:text-red-400 ml-1">x</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input value={newCat} onChange={(e) => setNewCat(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCategory()} placeholder="New category..." className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+            <button onClick={addCategory} className="px-4 py-2 bg-neon text-dark-900 rounded-lg text-sm font-bold hover:brightness-110">Add</button>
+          </div>
         </div>
       </div>
 
-      {/* Products List */}
+      {/* Products */}
       {products.map((product) => (
         <div key={product.id} className="glass rounded-2xl overflow-hidden">
-          <div
-            className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
-            onClick={() =>
-              setEditing(editing === product.id ? null : product.id)
-            }
-          >
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === product.id ? null : product.id)}>
             <div className="flex items-center gap-3">
-              {product.image ? (
-                <img
-                  src={product.image}
-                  alt=""
-                  className="w-10 h-10 rounded-lg object-cover bg-dark-700"
-                />
+              {product.image && (product.image.startsWith("http") || product.image.startsWith("/uploads/")) ? (
+                <img src={product.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
               ) : (
-                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-gray-600 font-bold text-sm">
-                  {product.name?.charAt(0) || "?"}
-                </div>
+                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-gray-600 font-bold text-sm">{product.name?.charAt(0) || "?"}</div>
               )}
               <div>
-                <p className="text-white font-medium text-sm">
-                  {product.name || "New Product"}
-                </p>
-                <p className="text-gray-500 text-xs">
-                  {product.category} &middot; {product.platform}
-                </p>
+                <p className="text-white font-medium text-sm">{product.name || "New Product"}</p>
+                <p className="text-gray-500 text-xs">{product.category}{product.price ? ` \u00B7 ${currency}${product.price.toLocaleString()}` : ""}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {product.featured && (
-                <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">
-                  Featured
-                </span>
-              )}
-              <span className="text-gray-500 text-sm">
-                {editing === product.id ? "\u25B2" : "\u25BC"}
-              </span>
+              {product.featured && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Featured</span>}
+              <span className="text-gray-500 text-sm">{editing === product.id ? "\u25B2" : "\u25BC"}</span>
             </div>
           </div>
 
           {editing === product.id && (
             <div className="p-4 pt-0 border-t border-glass-border">
-              <div className="pt-4 space-y-0">
-                <div className="flex gap-2 items-end mb-4">
-                  <div className="flex-1">
-                    <Field label="Product / Affiliate URL">
-                      <Input
-                        value={product.affiliateUrl}
-                        onChange={(v) =>
-                          updateProduct(product.id, {
-                            affiliateUrl: v,
-                          })
-                        }
-                        placeholder="https://amazon.in/..."
-                      />
-                    </Field>
-                  </div>
-                  <div className="mb-4">
-                    <FetchButton
-                      url={product.affiliateUrl}
-                      onFetched={(meta) =>
+              <div className="pt-4">
+                {/* Buy Links */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Buy Links</label>
+                  {product.buyLinks.map((link, idx) => (
+                    <div key={idx} className="flex gap-2 mb-2 items-center">
+                      <input value={link.platform} onChange={(e) => updateBuyLink(product.id, idx, "platform", e.target.value)} placeholder="Platform (Amazon, Flipkart...)" className="w-1/3 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+                      <input value={link.url} onChange={(e) => updateBuyLink(product.id, idx, "url", e.target.value)} placeholder="https://..." className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+                      <FetchButton url={link.url} onFetched={(m) => {
                         updateProduct(product.id, {
-                          name: meta.title || product.name,
-                          image: meta.image || product.image,
-                          platform:
-                            meta.siteName || product.platform,
-                          price: meta.price || product.price,
-                        })
-                      }
-                    />
-                  </div>
+                          name: m.title || product.name,
+                          image: m.image || product.image,
+                          price: m.price ? parseFloat(m.price.replace(/[^\d.]/g, "")) || product.price : product.price,
+                        });
+                        if (!link.platform && m.siteName) updateBuyLink(product.id, idx, "platform", m.siteName);
+                      }} />
+                      {product.buyLinks.length > 1 && (
+                        <button onClick={() => removeBuyLink(product.id, idx)} className="text-red-400 hover:text-red-300 text-lg px-1">x</button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={() => addBuyLink(product.id)} className="text-neon-cyan text-xs hover:underline mt-1">+ Add another link</button>
                 </div>
+
                 <div className="grid sm:grid-cols-2 gap-x-6">
-                  <Field label="Product Name">
-                    <Input
-                      value={product.name}
-                      onChange={(v) =>
-                        updateProduct(product.id, { name: v })
-                      }
-                    />
-                  </Field>
-                  <Field label="Price">
-                    <Input
-                      value={product.price || ""}
-                      onChange={(v) =>
-                        updateProduct(product.id, { price: v || undefined })
-                      }
-                      placeholder="e.g. ₹1,299 or $49.99"
-                    />
-                  </Field>
+                  <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
+                  <Field label="Price"><Input value={product.price?.toString() || ""} onChange={(v) => updateProduct(product.id, { price: v ? parseFloat(v) || undefined : undefined })} placeholder="e.g. 1299" /></Field>
                 </div>
-                <ImageUpload
-                  value={product.image}
-                  onChange={(v) => updateProduct(product.id, { image: v })}
-                  label="Product Image"
-                />
+                <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <Field label="Category">
-                    <select
-                      value={product.category}
-                      onChange={(e) =>
-                        updateProduct(product.id, {
-                          category: e.target.value,
-                        })
-                      }
-                      className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50"
-                    >
-                      {categories.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
+                    <select value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
+                      {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </Field>
-                  <Field label="Platform">
-                    <Input
-                      value={product.platform}
-                      onChange={(v) =>
-                        updateProduct(product.id, { platform: v })
-                      }
-                      placeholder="Amazon, Myntra, Flipkart..."
-                    />
-                  </Field>
+                  <div />
                 </div>
-                <Field label="Personal Note">
-                  <TextArea
-                    value={product.note}
-                    onChange={(v) =>
-                      updateProduct(product.id, { note: v })
-                    }
-                    placeholder="Why do you recommend this?"
-                  />
-                </Field>
+                <Field label="Personal Note"><TextArea value={product.note} onChange={(v) => updateProduct(product.id, { note: v })} placeholder="Why do you recommend this?" /></Field>
                 <div className="flex items-center justify-between pt-2">
-                  <Toggle
-                    checked={!!product.featured}
-                    onChange={(v) =>
-                      updateProduct(product.id, { featured: v })
-                    }
-                    label="Featured Product"
-                  />
-                  <button
-                    onClick={() => deleteProduct(product.id)}
-                    className="text-red-400 text-sm hover:text-red-300 transition-colors"
-                  >
-                    Delete Product
-                  </button>
+                  <Toggle checked={!!product.featured} onChange={(v) => updateProduct(product.id, { featured: v })} label="Featured Product" />
+                  <button onClick={() => deleteProduct(product.id)} className="text-red-400 text-sm hover:text-red-300">Delete Product</button>
                 </div>
               </div>
             </div>
           )}
         </div>
       ))}
+      <button onClick={addProduct} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add New Product</button>
+    </div>
+  );
+}
 
-      <button
-        onClick={addProduct}
-        className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium"
-      >
-        + Add New Product
-      </button>
+// ─── Contacts Tab ───
+function ContactsTab({ contacts, onChange }: { contacts: ContactInfo; onChange: (c: ContactInfo) => void }) {
+  const updateSocial = (id: string, u: Partial<SocialLink>) => {
+    onChange({ ...contacts, socials: contacts.socials.map((s) => (s.id === id ? { ...s, ...u } : s)) });
+  };
+  const addSocial = () => {
+    onChange({ ...contacts, socials: [...contacts.socials, { id: `social-${Date.now()}`, label: "", url: "" }] });
+  };
+  const removeSocial = (id: string) => {
+    onChange({ ...contacts, socials: contacts.socials.filter((s) => s.id !== id) });
+  };
+
+  const detectLabel = (url: string): string => {
+    try {
+      const h = new URL(url).hostname.toLowerCase();
+      if (h.includes("instagram")) return "Instagram";
+      if (h.includes("twitter") || h.includes("x.com")) return "X / Twitter";
+      if (h.includes("youtube")) return "YouTube";
+      if (h.includes("facebook")) return "Facebook";
+      if (h.includes("linkedin")) return "LinkedIn";
+      if (h.includes("tiktok")) return "TikTok";
+      if (h.includes("threads")) return "Threads";
+      if (h.includes("telegram")) return "Telegram";
+      if (h.includes("whatsapp")) return "WhatsApp";
+      if (h.includes("strava")) return "Strava";
+      if (h.includes("github")) return "GitHub";
+      return "";
+    } catch { return ""; }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Contact Info</h3>
+        <div className="grid sm:grid-cols-2 gap-x-6">
+          <Field label="Phone Number"><Input value={contacts.phone || ""} onChange={(v) => onChange({ ...contacts, phone: v || undefined })} placeholder="+91 98765 43210" /></Field>
+          <Field label="Email"><Input value={contacts.email || ""} onChange={(v) => onChange({ ...contacts, email: v || undefined })} placeholder="you@email.com" /></Field>
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Social Links</h3>
+        <p className="text-gray-500 text-xs mb-4">Paste your profile URL and the platform name + icon will be auto-detected.</p>
+        {contacts.socials.map((social) => (
+          <div key={social.id} className="flex gap-2 mb-3 items-center">
+            {social.url && (
+              <img src={`https://www.google.com/s2/favicons?domain=${(() => { try { return new URL(social.url).hostname; } catch { return ""; }})()}&sz=32`} alt="" className="w-6 h-6 rounded-sm shrink-0" />
+            )}
+            <input value={social.url} onChange={(e) => {
+              const url = e.target.value;
+              const autoLabel = detectLabel(url);
+              updateSocial(social.id, { url, ...(autoLabel ? { label: autoLabel } : {}) });
+            }} placeholder="https://instagram.com/yourhandle" className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+            <input value={social.label} onChange={(e) => updateSocial(social.id, { label: e.target.value })} placeholder="Label" className="w-28 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+            <button onClick={() => removeSocial(social.id)} className="text-red-400 hover:text-red-300 text-lg px-1">x</button>
+          </div>
+        ))}
+        <button onClick={addSocial} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Social Link</button>
+      </div>
     </div>
   );
 }
@@ -775,8 +440,9 @@ function GearTab({
 // ─── Main Admin Page ───
 const TABS = [
   { id: "creator", label: "Profile" },
-  { id: "apps", label: "Training Apps" },
-  { id: "gear", label: "Shop My Gear" },
+  { id: "apps", label: "Apps" },
+  { id: "gear", label: "Gear" },
+  { id: "contacts", label: "Contact" },
 ] as const;
 
 export default function AdminPage() {
@@ -785,182 +451,81 @@ export default function AdminPage() {
   const [data, setData] = useState<StorefrontData | null>(null);
   const [activeTab, setActiveTab] = useState<string>("creator");
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const showToast = useCallback(
-    (message: string, type: "success" | "error") => {
-      setToast({ message, type });
-    },
-    []
-  );
+  const showToast = useCallback((message: string, type: "success" | "error") => setToast({ message, type }), []);
 
-  // Check existing session
   useEffect(() => {
-    fetch("/api/auth/check")
-      .then((r) => r.json())
-      .then((d) => {
-        setAuthenticated(d.authenticated);
-        setChecking(false);
-      })
-      .catch(() => setChecking(false));
+    fetch("/api/auth/check").then((r) => r.json()).then((d) => { setAuthenticated(d.authenticated); setChecking(false); }).catch(() => setChecking(false));
   }, []);
 
-  // Load data after auth
   useEffect(() => {
     if (!authenticated) return;
-    fetch("/api/data")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => showToast("Failed to load data", "error"));
+    fetch("/api/data").then((r) => r.json()).then(setData).catch(() => showToast("Failed to load data", "error"));
   }, [authenticated, showToast]);
 
   const handleSave = async () => {
     if (!data) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/data", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        showToast("Changes saved!", "success");
-      } else {
-        showToast("Failed to save", "error");
-      }
-    } catch {
-      showToast("Network error", "error");
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch("/api/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      showToast(res.ok ? "Changes saved!" : "Failed to save", res.ok ? "success" : "error");
+    } catch { showToast("Network error", "error"); } finally { setSaving(false); }
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setAuthenticated(false);
-    setData(null);
-  };
+  const handleLogout = async () => { await fetch("/api/auth/logout", { method: "POST" }); setAuthenticated(false); setData(null); };
 
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!authenticated) {
-    return <LoginForm onLogin={() => setAuthenticated(true)} />;
-  }
-
-  if (!data) {
-    return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="text-gray-500">Loading data...</div>
-      </div>
-    );
-  }
+  if (checking) return <div className="min-h-screen bg-dark-900 flex items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
+  if (!authenticated) return <LoginForm onLogin={() => setAuthenticated(true)} />;
+  if (!data) return <div className="min-h-screen bg-dark-900 flex items-center justify-center"><div className="text-gray-500">Loading data...</div></div>;
 
   return (
     <div className="min-h-screen bg-dark-900 pb-20">
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Header */}
       <header className="sticky top-0 z-40 glass border-b border-glass-border">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-neon flex items-center justify-center">
-              <span className="text-dark-900 font-bold text-xs">SX</span>
-            </div>
-            <h1 className="text-white font-bold text-sm sm:text-base">
-              Admin Panel
-            </h1>
+            <div className="w-8 h-8 rounded-lg bg-neon flex items-center justify-center"><span className="text-dark-900 font-bold text-xs">SX</span></div>
+            <h1 className="text-white font-bold text-sm sm:text-base">Admin Panel</h1>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href="/"
-              target="_blank"
-              className="text-gray-400 hover:text-white text-sm transition-colors px-3 py-1.5"
-            >
-              View Site
-            </a>
-            <button
-              onClick={handleLogout}
-              className="text-gray-400 hover:text-red-400 text-sm transition-colors px-3 py-1.5"
-            >
-              Logout
-            </button>
+            <a href="/" target="_blank" className="text-gray-400 hover:text-white text-sm transition-colors px-3 py-1.5">View Site</a>
+            <button onClick={handleLogout} className="text-gray-400 hover:text-red-400 text-sm transition-colors px-3 py-1.5">Logout</button>
           </div>
         </div>
       </header>
 
-      {/* Tabs */}
       <div className="sticky top-[57px] z-30 bg-dark-900/80 backdrop-blur-sm border-b border-glass-border">
-        <div className="max-w-4xl mx-auto px-4 flex gap-1">
+        <div className="max-w-4xl mx-auto px-4 flex gap-1 overflow-x-auto no-scrollbar">
           {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-                activeTab === tab.id
-                  ? "text-neon"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-4 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${activeTab === tab.id ? "text-neon" : "text-gray-400 hover:text-white"}`}>
               {tab.label}
-              {activeTab === tab.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon rounded-full" />
-              )}
+              {activeTab === tab.id && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon rounded-full" />}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-6">
-        {activeTab === "creator" && (
-          <CreatorTab
-            creator={data.creator}
-            onChange={(creator) => setData({ ...data, creator })}
-          />
-        )}
-        {activeTab === "apps" && (
-          <AppsTab
-            apps={data.apps}
-            onChange={(apps) => setData({ ...data, apps })}
-          />
-        )}
+        {activeTab === "creator" && <CreatorTab creator={data.creator} onChange={(creator) => setData({ ...data, creator })} />}
+        {activeTab === "apps" && <AppsTab apps={data.apps} onChange={(apps) => setData({ ...data, apps })} />}
         {activeTab === "gear" && (
           <GearTab
             products={data.products}
             categories={data.categories}
-            onChangeProducts={(products) =>
-              setData({ ...data, products })
-            }
-            onChangeCategories={(categories) =>
-              setData({ ...data, categories })
-            }
+            currency={data.currency}
+            onChangeProducts={(products) => setData({ ...data, products })}
+            onChangeCategories={(categories) => setData({ ...data, categories })}
+            onChangeCurrency={(currency) => setData({ ...data, currency })}
           />
         )}
+        {activeTab === "contacts" && <ContactsTab contacts={data.contacts} onChange={(contacts) => setData({ ...data, contacts })} />}
       </div>
 
-      {/* Sticky Save Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 glass border-t border-glass-border">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-8 py-2.5 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50 text-sm"
-          >
+          <button onClick={handleSave} disabled={saving} className="px-8 py-2.5 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50 text-sm">
             {saving ? "Saving..." : "Save All Changes"}
           </button>
         </div>

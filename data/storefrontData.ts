@@ -18,16 +18,32 @@ export interface App {
   highlight?: boolean;
 }
 
+export interface BuyLink {
+  platform: string;
+  url: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   category: string;
   image: string;
-  affiliateUrl: string;
-  platform: string;
+  buyLinks: BuyLink[];
   note: string;
-  price?: string;
+  price?: number;
   featured?: boolean;
+}
+
+export interface SocialLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
+export interface ContactInfo {
+  phone?: string;
+  email?: string;
+  socials: SocialLink[];
 }
 
 export const creator: Creator = {
@@ -76,9 +92,12 @@ export const products: Product[] = [
     name: "Nike Metcon 9",
     category: "Shoes",
     image: "/products/metcon9.jpg",
-    affiliateUrl: "https://amazon.in",
-    platform: "Amazon",
+    buyLinks: [
+      { platform: "Amazon", url: "https://amazon.in" },
+      { platform: "Flipkart", url: "https://flipkart.com" },
+    ],
     note: "Best all-around training shoe. Stable for lifts, decent for short runs.",
+    price: 12995,
     featured: true,
   },
   {
@@ -86,18 +105,18 @@ export const products: Product[] = [
     name: "Gymshark Apex Shorts",
     category: "Gym Wear",
     image: "/products/gymshark-shorts.jpg",
-    affiliateUrl: "https://myntra.com",
-    platform: "Myntra",
+    buyLinks: [{ platform: "Myntra", url: "https://myntra.com" }],
     note: "Lightweight, no ride-up. My daily gym go-to.",
+    price: 2499,
   },
   {
     id: "garmin-forerunner",
     name: "Garmin Forerunner 265",
     category: "Watches",
     image: "/products/garmin265.jpg",
-    affiliateUrl: "https://amazon.in",
-    platform: "Amazon",
+    buyLinks: [{ platform: "Amazon", url: "https://amazon.in" }],
     note: "AMOLED display, incredible GPS accuracy. Worth every rupee.",
+    price: 39990,
     featured: true,
   },
   {
@@ -105,26 +124,35 @@ export const products: Product[] = [
     name: "JELEX Resistance Bands Set",
     category: "Accessories",
     image: "/products/bands.jpg",
-    affiliateUrl: "https://amazon.in",
-    platform: "Amazon",
+    buyLinks: [{ platform: "Amazon", url: "https://amazon.in" }],
     note: "Great for warm-ups and mobility work. Travel-friendly too.",
+    price: 599,
   },
   {
     id: "whey-protein",
     name: "Optimum Nutrition Gold Standard",
-    category: "Essentials",
+    category: "Supplements",
     image: "/products/whey.jpg",
-    affiliateUrl: "https://amazon.in",
-    platform: "Amazon",
+    buyLinks: [{ platform: "Amazon", url: "https://amazon.in" }],
     note: "The OG whey. Double chocolate flavor never disappoints.",
+    price: 4899,
   },
   {
     id: "nike-pegasus",
     name: "Nike Pegasus 41",
     category: "Shoes",
     image: "/products/pegasus41.jpg",
-    affiliateUrl: "https://myntra.com",
-    platform: "Myntra",
+    buyLinks: [
+      { platform: "Myntra", url: "https://myntra.com" },
+      { platform: "Ajio", url: "https://ajio.com" },
+    ],
     note: "My daily running shoe. Cushioned, responsive, reliable.",
+    price: 11495,
   },
 ];
+
+export const contacts: ContactInfo = {
+  phone: "",
+  email: "",
+  socials: [],
+};

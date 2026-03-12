@@ -1,14 +1,47 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type { Product } from "@/data/storefrontData";
 
 interface ProductCardProps {
   product: Product;
   index: number;
+  currency: string;
 }
 
-export default function ProductCard({ product, index }: ProductCardProps) {
+function formatPrice(price: number, currency: string): string {
+  if (currency === "\u20B9" || currency === "INR") {
+    return `\u20B9${price.toLocaleString("en-IN")}`;
+  }
+  if (currency === "$" || currency === "USD") {
+    return `$${price.toLocaleString("en-US")}`;
+  }
+  return `${currency}${price.toLocaleString()}`;
+}
+
+function getPlatformColor(platform: string): string {
+  const p = platform.toLowerCase();
+  if (p.includes("amazon")) return "bg-orange-500/20 text-orange-400";
+  if (p.includes("flipkart")) return "bg-yellow-500/20 text-yellow-400";
+  if (p.includes("myntra")) return "bg-pink-500/20 text-pink-400";
+  if (p.includes("ajio")) return "bg-purple-500/20 text-purple-400";
+  if (p.includes("cult")) return "bg-red-500/20 text-red-400";
+  return "bg-blue-500/20 text-blue-400";
+}
+
+export default function ProductCard({
+  product,
+  index,
+  currency,
+}: ProductCardProps) {
+  const [showLinks, setShowLinks] = useState(false);
+  const hasImage =
+    product.image &&
+    (product.image.startsWith("http") ||
+      product.image.startsWith("/uploads/"));
+  const singleLink = product.buyLinks.length === 1;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -26,7 +59,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
 
       {/* Product Image */}
       <div className="aspect-square bg-dark-700 relative overflow-hidden">
-        {product.image && (product.image.startsWith("http") || product.image.startsWith("/uploads/")) ? (
+        {hasImage ? (
           <img
             src={product.image}
             alt={product.name}
@@ -42,38 +75,90 @@ export default function ProductCard({ product, index }: ProductCardProps) {
         )}
       </div>
 
-      <div className="p-4 flex flex-col flex-1">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="text-sm font-semibold text-white leading-tight">
-            {product.name}
-          </h3>
-          <span
-            className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              product.platform === "Amazon"
-                ? "bg-orange-500/20 text-orange-400"
-                : "bg-pink-500/20 text-pink-400"
-            }`}
-          >
-            {product.platform}
-          </span>
+      <div className="p-3 sm:p-4 flex flex-col flex-1">
+        <h3 className="text-xs sm:text-sm font-semibold text-white leading-tight mb-1 line-clamp-2">
+          {product.name}
+        </h3>
+
+        {/* Platform badges */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {product.buyLinks.map((link) => (
+            <span
+              key={link.platform}
+              className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full ${getPlatformColor(
+                link.platform
+              )}`}
+            >
+              {link.platform}
+            </span>
+          ))}
         </div>
 
-        <p className="text-gray-500 text-xs leading-relaxed mb-2 flex-1">
-          {product.note}
-        </p>
-
-        {product.price && (
-          <p className="text-neon font-bold text-lg mb-2">{product.price}</p>
+        {product.note && (
+          <p className="text-gray-500 text-[11px] sm:text-xs leading-relaxed mb-2 flex-1 line-clamp-2">
+            {product.note}
+          </p>
         )}
 
-        <a
-          href={product.affiliateUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full text-center py-2.5 rounded-xl text-sm font-bold bg-neon text-dark-900 hover:brightness-110 transition-all"
-        >
-          Buy Now
-        </a>
+        {product.price != null && product.price > 0 && (
+          <p className="text-neon font-bold text-base sm:text-lg mb-2">
+            {formatPrice(product.price, currency)}
+          </p>
+        )}
+
+        {/* Buy Button */}
+        {product.buyLinks.length > 0 && (
+          <div className="relative mt-auto">
+            {singleLink ? (
+              <a
+                href={product.buyLinks[0].url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-neon text-dark-900 hover:brightness-110 transition-all"
+              >
+                Buy on {product.buyLinks[0].platform}
+              </a>
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowLinks(!showLinks)}
+                  className="block w-full text-center py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-neon text-dark-900 hover:brightness-110 transition-all"
+                >
+                  Buy Now
+                </button>
+                {showLinks && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowLinks(false)}
+                    />
+                    <div className="absolute bottom-full left-0 right-0 mb-2 z-40 bg-dark-700 border border-glass-border rounded-xl overflow-hidden shadow-2xl">
+                      {product.buyLinks.map((link) => (
+                        <a
+                          key={link.platform}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShowLinks(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-b border-glass-border last:border-0"
+                        >
+                          <img
+                            src={`https://www.google.com/s2/favicons?domain=${new URL(link.url).hostname}&sz=32`}
+                            alt=""
+                            className="w-4 h-4 rounded-sm"
+                          />
+                          <span className="font-medium">
+                            {link.platform}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );
