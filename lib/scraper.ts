@@ -4,6 +4,7 @@ export interface UrlMetadata {
   image: string;
   favicon: string;
   siteName: string;
+  price: string;
 }
 
 function extractMeta(html: string, property: string): string {
@@ -58,6 +59,16 @@ export async function fetchMetadata(url: string): Promise<UrlMetadata> {
     const faviconHref =
       faviconMatch?.[1] || altFavicon?.[1] || "/favicon.ico";
 
+    // Try to extract price from common patterns
+    const priceOg = extractMeta(html, "og:price:amount") || extractMeta(html, "product:price:amount");
+    const priceCurrency = extractMeta(html, "og:price:currency") || extractMeta(html, "product:price:currency") || "";
+    // Common price patterns in HTML: ₹1,299 / Rs. 1299 / $49.99
+    const priceHtml = html.match(/["'>](?:₹|Rs\.?\s*|INR\s*|USD\s*|\$)([\d,]+(?:\.\d{2})?)/)?.[1] || "";
+    const priceValue = priceOg || priceHtml;
+    const price = priceValue
+      ? `${priceCurrency === "INR" || !priceCurrency ? "\u20B9" : priceCurrency + " "}${priceValue}`
+      : "";
+
     return {
       title:
         extractMeta(html, "og:title") || titleMatch?.[1]?.trim() || "",
@@ -70,6 +81,7 @@ export async function fetchMetadata(url: string): Promise<UrlMetadata> {
       siteName:
         extractMeta(html, "og:site_name") ||
         baseUrl.hostname.replace("www.", ""),
+      price,
     };
   } finally {
     clearTimeout(timeout);

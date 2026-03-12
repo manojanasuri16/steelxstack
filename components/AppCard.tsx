@@ -25,9 +25,13 @@ export default function AppCard({ app, index }: AppCardProps) {
       )}
 
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-14 h-14 rounded-xl bg-dark-700 flex items-center justify-center text-2xl font-bold text-neon shrink-0">
-          {app.name.charAt(0)}
-        </div>
+        {app.logo && (app.logo.startsWith("http") || app.logo.startsWith("/uploads/")) ? (
+          <img src={app.logo} alt={app.name} className="w-14 h-14 rounded-xl object-cover bg-dark-700 shrink-0" />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-dark-700 flex items-center justify-center text-2xl font-bold text-neon shrink-0">
+            {app.name.charAt(0)}
+          </div>
+        )}
         <div>
           <h3 className="text-lg font-semibold text-white">{app.name}</h3>
         </div>

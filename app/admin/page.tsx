@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import ImageUpload from "@/components/ImageUpload";
 
 interface Creator {
   name: string;
@@ -30,6 +31,7 @@ interface Product {
   affiliateUrl: string;
   platform: string;
   note: string;
+  price?: string;
   featured?: boolean;
 }
 
@@ -223,6 +225,7 @@ function FetchButton({
     image: string;
     favicon: string;
     siteName: string;
+    price: string;
   }) => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -291,12 +294,12 @@ function CreatorTab({
           onChange={(v) => update("bio", v)}
         />
       </Field>
-      <Field label="Profile Image URL">
-        <Input
-          value={creator.profileImage}
-          onChange={(v) => update("profileImage", v)}
-        />
-      </Field>
+      <ImageUpload
+        value={creator.profileImage}
+        onChange={(v) => update("profileImage", v)}
+        label="Profile Image"
+        shape="circle"
+      />
       <div className="grid sm:grid-cols-2 gap-x-6">
         <Field label="Primary CTA Label">
           <Input
@@ -439,24 +442,19 @@ function AppsTab({
                     />
                   </div>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-x-6">
-                  <Field label="App Name">
-                    <Input
-                      value={app.name}
-                      onChange={(v) =>
-                        updateApp(app.id, { name: v })
-                      }
-                    />
-                  </Field>
-                  <Field label="Logo / Icon URL">
-                    <Input
-                      value={app.logo}
-                      onChange={(v) =>
-                        updateApp(app.id, { logo: v })
-                      }
-                    />
-                  </Field>
-                </div>
+                <Field label="App Name">
+                  <Input
+                    value={app.name}
+                    onChange={(v) =>
+                      updateApp(app.id, { name: v })
+                    }
+                  />
+                </Field>
+                <ImageUpload
+                  value={app.logo}
+                  onChange={(v) => updateApp(app.id, { logo: v })}
+                  label="App Logo / Icon"
+                />
                 <Field label="Description">
                   <TextArea
                     value={app.description}
@@ -676,6 +674,7 @@ function GearTab({
                           image: meta.image || product.image,
                           platform:
                             meta.siteName || product.platform,
+                          price: meta.price || product.price,
                         })
                       }
                     />
@@ -690,15 +689,21 @@ function GearTab({
                       }
                     />
                   </Field>
-                  <Field label="Image URL">
+                  <Field label="Price">
                     <Input
-                      value={product.image}
+                      value={product.price || ""}
                       onChange={(v) =>
-                        updateProduct(product.id, { image: v })
+                        updateProduct(product.id, { price: v || undefined })
                       }
+                      placeholder="e.g. ₹1,299 or $49.99"
                     />
                   </Field>
                 </div>
+                <ImageUpload
+                  value={product.image}
+                  onChange={(v) => updateProduct(product.id, { image: v })}
+                  label="Product Image"
+                />
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <Field label="Category">
                     <select

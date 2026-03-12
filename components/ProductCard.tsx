@@ -24,13 +24,22 @@ export default function ProductCard({ product, index }: ProductCardProps) {
         </div>
       )}
 
-      {/* Image placeholder */}
+      {/* Product Image */}
       <div className="aspect-square bg-dark-700 relative overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-4xl font-bold text-dark-600 group-hover:text-dark-700 transition-colors">
-            {product.name.charAt(0)}
-          </span>
-        </div>
+        {product.image && (product.image.startsWith("http") || product.image.startsWith("/uploads/")) ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-4xl font-bold text-dark-600 group-hover:text-dark-700 transition-colors">
+              {product.name.charAt(0)}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="p-4 flex flex-col flex-1">
@@ -49,9 +58,13 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           </span>
         </div>
 
-        <p className="text-gray-500 text-xs leading-relaxed mb-3 flex-1">
+        <p className="text-gray-500 text-xs leading-relaxed mb-2 flex-1">
           {product.note}
         </p>
+
+        {product.price && (
+          <p className="text-neon font-bold text-lg mb-2">{product.price}</p>
+        )}
 
         <a
           href={product.affiliateUrl}

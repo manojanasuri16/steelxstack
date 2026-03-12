@@ -21,11 +21,12 @@ export interface App {
 export interface Product {
   id: string;
   name: string;
-  category: "Shoes" | "Gym Wear" | "Accessories" | "Watches" | "Essentials";
+  category: string;
   image: string;
   affiliateUrl: string;
-  platform: "Amazon" | "Myntra";
+  platform: string;
   note: string;
+  price?: string;
   featured?: boolean;
 }
 
