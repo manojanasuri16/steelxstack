@@ -34,13 +34,50 @@ function getRedis(): Redis | null {
   return null;
 }
 
+// Migrate old data format to new format
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateData(raw: any): StorefrontData {
+  const data = { ...DEFAULT_DATA, ...raw };
+
+  // Migrate products: old affiliateUrl+platform → new buyLinks[]
+  if (data.products) {
+    data.products = data.products.map((p: Record<string, unknown>) => {
+      if (!p.buyLinks && (p.affiliateUrl || p.platform)) {
+        return {
+          ...p,
+          buyLinks: p.affiliateUrl
+            ? [{ platform: (p.platform as string) || "Link", url: p.affiliateUrl as string }]
+            : [],
+          price: typeof p.price === "string" ? parseFloat((p.price as string).replace(/[^\d.]/g, "")) || undefined : p.price,
+        };
+      }
+      return p;
+    });
+  }
+
+  // Ensure contacts exists
+  if (!data.contacts) {
+    data.contacts = DEFAULT_DATA.contacts;
+  }
+  if (!data.contacts.socials) {
+    data.contacts.socials = [];
+  }
+
+  // Ensure currency exists
+  if (!data.currency) {
+    data.currency = DEFAULT_DATA.currency;
+  }
+
+  return data as StorefrontData;
+}
+
 export async function getData(): Promise<StorefrontData> {
   const redis = getRedis();
 
   if (redis) {
     try {
-      const data = await redis.get<StorefrontData>("storefront-data");
-      if (data) return data;
+      const raw = await redis.get("storefront-data");
+      if (raw) return migrateData(raw);
       // Seed Redis with default data on first access
       await redis.set("storefront-data", DEFAULT_DATA);
       return DEFAULT_DATA;
@@ -56,7 +93,7 @@ export async function getData(): Promise<StorefrontData> {
     const path = await import("path");
     const filePath = path.join(process.cwd(), "data", "local-data.json");
     const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw);
+    return migrateData(JSON.parse(raw));
   } catch {
     return DEFAULT_DATA;
   }
