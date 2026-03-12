@@ -14,6 +14,7 @@ export default async function Home() {
       categories={data.categories}
       currency={data.currency}
       contacts={data.contacts}
+      workoutPlans={data.workoutPlans}
     />
   );
 }

@@ -4,8 +4,9 @@ import {
   apps as defaultApps,
   products as defaultProducts,
   contacts as defaultContacts,
+  workoutPlans as defaultWorkoutPlans,
 } from "@/data/storefrontData";
-import type { Creator, App, Product, ContactInfo } from "@/data/storefrontData";
+import type { Creator, App, Product, ContactInfo, WorkoutPlan } from "@/data/storefrontData";
 
 export interface StorefrontData {
   creator: Creator;
@@ -14,6 +15,7 @@ export interface StorefrontData {
   categories: string[];
   currency: string;
   contacts: ContactInfo;
+  workoutPlans: WorkoutPlan[];
 }
 
 const DEFAULT_DATA: StorefrontData = {
@@ -23,6 +25,7 @@ const DEFAULT_DATA: StorefrontData = {
   categories: ["Shoes", "Gym Wear", "Accessories", "Watches", "Supplements", "Essentials"],
   currency: "\u20B9",
   contacts: defaultContacts,
+  workoutPlans: defaultWorkoutPlans,
 };
 
 function getRedis(): Redis | null {
@@ -67,6 +70,11 @@ function migrateData(raw: any): StorefrontData {
   // Ensure currency exists
   if (!data.currency) {
     data.currency = DEFAULT_DATA.currency;
+  }
+
+  // Ensure workoutPlans exists
+  if (!data.workoutPlans) {
+    data.workoutPlans = DEFAULT_DATA.workoutPlans;
   }
 
   return data as StorefrontData;

@@ -7,11 +7,47 @@ const SECRET = new TextEncoder().encode(
 
 const COOKIE_NAME = "sx-admin-token";
 
+// Session version — stored in Redis. Incrementing invalidates all tokens.
+let cachedSessionVersion: number | null = null;
+
+async function getRedis() {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  const { Redis } = await import("@upstash/redis");
+  return new Redis({ url, token });
+}
+
+async function getSessionVersion(): Promise<number> {
+  if (cachedSessionVersion !== null) return cachedSessionVersion;
+  try {
+    const redis = await getRedis();
+    if (redis) {
+      const v = await redis.get<number>("admin-session-version");
+      cachedSessionVersion = v ?? 1;
+      return cachedSessionVersion;
+    }
+  } catch {}
+  return 1;
+}
+
+export async function rotateSessionVersion(): Promise<void> {
+  try {
+    const redis = await getRedis();
+    if (redis) {
+      const current = await redis.get<number>("admin-session-version") ?? 1;
+      await redis.set("admin-session-version", current + 1);
+      cachedSessionVersion = current + 1;
+    }
+  } catch {}
+}
+
 export async function login(password: string): Promise<string | null> {
   const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
   if (password !== adminPassword) return null;
 
-  const token = await new SignJWT({ role: "admin" })
+  const sv = await getSessionVersion();
+  const token = await new SignJWT({ role: "admin", sv })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
     .sign(SECRET);
@@ -21,7 +57,10 @@ export async function login(password: string): Promise<string | null> {
 
 export async function verifyToken(token: string): Promise<boolean> {
   try {
-    await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, SECRET);
+    // Check session version
+    const sv = await getSessionVersion();
+    if (payload.sv !== undefined && payload.sv !== sv) return false;
     return true;
   } catch {
     return false;

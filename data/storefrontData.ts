@@ -38,6 +38,20 @@ export interface Product {
   featured?: boolean;
 }
 
+export interface WorkoutPlan {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  appName: string;
+  appIcon?: string;
+  planUrl: string;
+  type: "gym" | "running" | "hybrid" | "other";
+  duration?: string;
+  level?: string;
+  featured?: boolean;
+}
+
 export interface SocialLink {
   id: string;
   label: string;
@@ -154,6 +168,32 @@ export const products: Product[] = [
     ],
     note: "My daily running shoe. Cushioned, responsive, reliable.",
     price: 11495,
+  },
+];
+
+export const workoutPlans: WorkoutPlan[] = [
+  {
+    id: "ppl-split",
+    title: "Push Pull Legs Split",
+    description: "My go-to 6-day hypertrophy program. Progressive overload with compound and isolation work.",
+    image: "",
+    appName: "Lyfta",
+    planUrl: "https://lyfta.app",
+    type: "gym",
+    duration: "6 weeks",
+    level: "Intermediate",
+    featured: true,
+  },
+  {
+    id: "half-marathon",
+    title: "Half Marathon Training",
+    description: "16-week plan that took me from 5K to 21K. Includes easy runs, tempo, and long runs.",
+    image: "",
+    appName: "Runna",
+    planUrl: "https://runna.com",
+    type: "running",
+    duration: "16 weeks",
+    level: "Beginner–Intermediate",
   },
 ];
 

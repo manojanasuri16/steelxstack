@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
-import { COOKIE_NAME } from "@/lib/auth";
+import { COOKIE_NAME, rotateSessionVersion } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(req: Request) {
+  let everywhere = false;
+  try {
+    const body = await req.json();
+    everywhere = body?.everywhere === true;
+  } catch {
+    // No body or invalid JSON — normal logout
+  }
+
+  if (everywhere) {
+    await rotateSessionVersion();
+  }
+
   const res = NextResponse.json({ success: true });
   res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
   return res;

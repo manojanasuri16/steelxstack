@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import SectionWrapper from "@/components/SectionWrapper";
 import AppCard from "@/components/AppCard";
 import ProductCard from "@/components/ProductCard";
-import type { Creator, App, Product, ContactInfo } from "@/data/storefrontData";
+import type { Creator, App, Product, ContactInfo, WorkoutPlan } from "@/data/storefrontData";
 
 function getDomainIcon(url: string): string {
   try {
@@ -43,6 +43,7 @@ interface StorefrontPageProps {
   categories: string[];
   currency: string;
   contacts: ContactInfo;
+  workoutPlans: WorkoutPlan[];
 }
 
 const PRODUCTS_PER_PAGE = 8;
@@ -54,6 +55,7 @@ export default function StorefrontPage({
   categories,
   currency,
   contacts,
+  workoutPlans,
 }: StorefrontPageProps) {
   const allCategories = ["All", ...categories];
   const [activeCategory, setActiveCategory] = useState<string>("All");
@@ -160,6 +162,81 @@ export default function StorefrontPage({
           <div className="sm:hidden flex gap-3 overflow-x-auto no-scrollbar pb-2 pt-3 -mx-4 px-4">
             {apps.map((app, i) => (
               <AppCard key={app.id} app={app} index={i} />
+            ))}
+          </div>
+        </SectionWrapper>
+      )}
+
+      {/* WORKOUT PLANS */}
+      {workoutPlans && workoutPlans.length > 0 && (
+        <SectionWrapper
+          id="plans"
+          title="My Workout Plans"
+          subtitle="Follow the exact plans I use. Whether you lift, run, or do both."
+        >
+          <div className="grid sm:grid-cols-2 gap-4">
+            {workoutPlans.map((plan, i) => (
+              <motion.a
+                key={plan.id}
+                href={plan.planUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.35, delay: i * 0.08 }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="glass rounded-2xl overflow-hidden flex flex-col relative group"
+              >
+                {plan.featured && (
+                  <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Featured
+                  </div>
+                )}
+
+                {/* Cover Image */}
+                {plan.image && (plan.image.startsWith("http") || plan.image.startsWith("/uploads/")) ? (
+                  <div className="aspect-[16/9] bg-dark-700 overflow-hidden">
+                    <img src={plan.image} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                  </div>
+                ) : (
+                  <div className="aspect-[16/9] bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center">
+                    <span className="text-3xl font-bold text-dark-600">
+                      {plan.type === "gym" ? "🏋️" : plan.type === "running" ? "🏃" : plan.type === "hybrid" ? "⚡" : "📋"}
+                    </span>
+                  </div>
+                )}
+
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-center gap-2 mb-2">
+                    {plan.appIcon && (plan.appIcon.startsWith("http") || plan.appIcon.startsWith("/uploads/")) ? (
+                      <img src={plan.appIcon} alt="" className="w-5 h-5 rounded-sm" />
+                    ) : plan.appName ? (
+                      <img src={`https://www.google.com/s2/favicons?domain=${plan.planUrl ? (() => { try { return new URL(plan.planUrl).hostname; } catch { return ""; } })() : ""}&sz=32`} alt="" className="w-5 h-5 rounded-sm" />
+                    ) : null}
+                    <span className="text-xs text-gray-400 font-medium">{plan.appName}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${
+                      plan.type === "gym" ? "bg-purple-500/20 text-purple-400" :
+                      plan.type === "running" ? "bg-green-500/20 text-green-400" :
+                      plan.type === "hybrid" ? "bg-orange-500/20 text-orange-400" :
+                      "bg-blue-500/20 text-blue-400"
+                    }`}>
+                      {plan.type}
+                    </span>
+                  </div>
+
+                  <h3 className="text-white font-semibold text-sm mb-1">{plan.title}</h3>
+                  {plan.description && (
+                    <p className="text-gray-500 text-xs leading-relaxed mb-3 flex-1 line-clamp-2">{plan.description}</p>
+                  )}
+
+                  <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                    {plan.duration && <span>{plan.duration}</span>}
+                    {plan.duration && plan.level && <span className="text-dark-600">·</span>}
+                    {plan.level && <span>{plan.level}</span>}
+                  </div>
+                </div>
+              </motion.a>
             ))}
           </div>
         </SectionWrapper>

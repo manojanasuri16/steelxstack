@@ -58,6 +58,20 @@ interface ContactInfo {
   socials: SocialLink[];
 }
 
+interface WorkoutPlan {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  appName: string;
+  appIcon?: string;
+  planUrl: string;
+  type: "gym" | "running" | "hybrid" | "other";
+  duration?: string;
+  level?: string;
+  featured?: boolean;
+}
+
 interface StorefrontData {
   creator: Creator;
   apps: App[];
@@ -65,14 +79,8 @@ interface StorefrontData {
   categories: string[];
   currency: string;
   contacts: ContactInfo;
+  workoutPlans: WorkoutPlan[];
 }
-
-const CURRENCIES = [
-  { symbol: "\u20B9", label: "INR (\u20B9)" },
-  { symbol: "$", label: "USD ($)" },
-  { symbol: "\u20AC", label: "EUR (\u20AC)" },
-  { symbol: "\u00A3", label: "GBP (\u00A3)" },
-];
 
 // ─── Toast ───
 function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
@@ -262,9 +270,9 @@ function AppsTab({ apps, onChange }: { apps: App[]; onChange: (a: App[]) => void
 }
 
 // ─── Gear Tab ───
-function GearTab({ products, categories, currency, onChangeProducts, onChangeCategories, onChangeCurrency }: {
+function GearTab({ products, categories, currency, onChangeProducts, onChangeCategories }: {
   products: Product[]; categories: string[]; currency: string;
-  onChangeProducts: (p: Product[]) => void; onChangeCategories: (c: string[]) => void; onChangeCurrency: (c: string) => void;
+  onChangeProducts: (p: Product[]) => void; onChangeCategories: (c: string[]) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [newCat, setNewCat] = useState("");
@@ -310,18 +318,8 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
 
   return (
     <div className="space-y-6">
-      {/* Currency + Categories */}
+      {/* Categories */}
       <div className="glass rounded-2xl p-5 space-y-4">
-        <div>
-          <h3 className="text-sm font-bold text-white mb-2">Currency</h3>
-          <div className="flex gap-2">
-            {CURRENCIES.map((c) => (
-              <button key={c.symbol} onClick={() => onChangeCurrency(c.symbol)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${currency === c.symbol ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-300 hover:text-white"}`}>
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
         <div>
           <h3 className="text-sm font-bold text-white mb-2">Categories</h3>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -392,20 +390,7 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
 
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
-                  <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Product Currency</label>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => updateProduct(product.id, { currency: undefined })} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${!product.currency ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-300 hover:text-white"}`}>
-                      Global ({currency})
-                    </button>
-                    {CURRENCIES.map((c) => (
-                      <button key={c.symbol} type="button" onClick={() => updateProduct(product.id, { currency: c.symbol })} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${product.currency === c.symbol ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-300 hover:text-white"}`}>
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
+                  <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} onCurrencyChange={(v) => updateProduct(product.id, { currency: v })} />
                 </div>
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
@@ -498,6 +483,90 @@ function ContactsTab({ contacts, onChange }: { contacts: ContactInfo; onChange: 
         ))}
         <button onClick={addSocial} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Social Link</button>
       </div>
+    </div>
+  );
+}
+
+// ─── Plans Tab ───
+const PLAN_TYPES = [
+  { value: "gym", label: "Gym" },
+  { value: "running", label: "Running" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "other", label: "Other" },
+];
+
+function PlansTab({ plans, onChange }: { plans: WorkoutPlan[]; onChange: (p: WorkoutPlan[]) => void }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const updatePlan = (id: string, u: Partial<WorkoutPlan>) => onChange(plans.map((p) => (p.id === id ? { ...p, ...u } : p)));
+  const deletePlan = (id: string) => { onChange(plans.filter((p) => p.id !== id)); setEditing(null); };
+  const addPlan = () => {
+    const np: WorkoutPlan = { id: `plan-${Date.now()}`, title: "", description: "", image: "", appName: "", planUrl: "", type: "gym" };
+    onChange([...plans, np]);
+    setEditing(np.id);
+  };
+  const movePlan = (id: string, dir: "up" | "down") => {
+    const idx = plans.findIndex((p) => p.id === id);
+    if (idx < 0) return;
+    const target = dir === "up" ? idx - 1 : idx + 1;
+    if (target < 0 || target >= plans.length) return;
+    const reordered = [...plans];
+    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
+    onChange(reordered);
+  };
+
+  return (
+    <div className="space-y-4">
+      {plans.map((plan) => (
+        <div key={plan.id} className="glass rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === plan.id ? null : plan.id)}>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => movePlan(plan.id, "up")} disabled={plans.indexOf(plan) === 0} className="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5">&#9650;</button>
+                <button onClick={() => movePlan(plan.id, "down")} disabled={plans.indexOf(plan) === plans.length - 1} className="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5">&#9660;</button>
+              </div>
+              <div>
+                <p className="text-white font-medium text-sm">{plan.title || "New Plan"}</p>
+                <p className="text-gray-500 text-xs">{plan.appName || "No app"}{plan.type ? ` · ${plan.type}` : ""}{plan.duration ? ` · ${plan.duration}` : ""}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {plan.featured && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Featured</span>}
+              <span className="text-gray-500 text-sm">{editing === plan.id ? "\u25B2" : "\u25BC"}</span>
+            </div>
+          </div>
+          {editing === plan.id && (
+            <div className="p-4 pt-0 border-t border-glass-border">
+              <div className="pt-4">
+                <div className="flex gap-2 items-end mb-4">
+                  <div className="flex-1"><Field label="Plan URL"><Input value={plan.planUrl} onChange={(v) => updatePlan(plan.id, { planUrl: v })} placeholder="https://lyfta.app/plan/..." /></Field></div>
+                  <div className="mb-4"><FetchButton url={plan.planUrl} onFetched={(m) => updatePlan(plan.id, { title: m.title || plan.title, description: m.description || plan.description, image: m.image || plan.image })} /></div>
+                </div>
+                <Field label="Plan Title"><Input value={plan.title} onChange={(v) => updatePlan(plan.id, { title: v })} /></Field>
+                <Field label="Description"><TextArea value={plan.description} onChange={(v) => updatePlan(plan.id, { description: v })} placeholder="What is this plan about?" /></Field>
+                <ImageUpload value={plan.image} onChange={(v) => updatePlan(plan.id, { image: v })} label="Cover Image" />
+                <div className="grid sm:grid-cols-2 gap-x-6">
+                  <Field label="App Name"><Input value={plan.appName} onChange={(v) => updatePlan(plan.id, { appName: v })} placeholder="Lyfta, Runna, Strava..." /></Field>
+                  <ImageUpload value={plan.appIcon || ""} onChange={(v) => updatePlan(plan.id, { appIcon: v || undefined })} label="App Icon (optional)" />
+                </div>
+                <div className="grid sm:grid-cols-3 gap-x-6">
+                  <Field label="Type">
+                    <select value={plan.type} onChange={(e) => updatePlan(plan.id, { type: e.target.value as WorkoutPlan["type"] })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
+                      {PLAN_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Duration"><Input value={plan.duration || ""} onChange={(v) => updatePlan(plan.id, { duration: v || undefined })} placeholder="6 weeks" /></Field>
+                  <Field label="Level"><Input value={plan.level || ""} onChange={(v) => updatePlan(plan.id, { level: v || undefined })} placeholder="Beginner, Intermediate..." /></Field>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <Toggle checked={!!plan.featured} onChange={(v) => updatePlan(plan.id, { featured: v })} label="Featured Plan" />
+                  <button onClick={() => deletePlan(plan.id)} className="text-red-400 text-sm hover:text-red-300">Delete Plan</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <button onClick={addPlan} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Workout Plan</button>
     </div>
   );
 }
@@ -612,6 +681,26 @@ function SecurityTab({ showToast }: { showToast: (msg: string, type: "success" |
           </div>
         )}
       </div>
+
+      {/* Logout Everywhere */}
+      <div className="glass rounded-2xl p-6 mt-4">
+        <h3 className="text-lg font-bold text-white mb-2">Sessions</h3>
+        <p className="text-gray-400 text-sm mb-4">Invalidate all active sessions. You will need to log in again.</p>
+        <button
+          onClick={async () => {
+            const res = await fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ everywhere: true }) });
+            if (res.ok) {
+              showToast("All sessions logged out", "success");
+              setTimeout(() => window.location.reload(), 1000);
+            } else {
+              showToast("Failed to logout everywhere", "error");
+            }
+          }}
+          className="px-6 py-2.5 rounded-xl font-bold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm"
+        >
+          Logout Everywhere
+        </button>
+      </div>
     </div>
   );
 }
@@ -621,6 +710,7 @@ const TABS = [
   { id: "creator", label: "Profile" },
   { id: "apps", label: "Apps" },
   { id: "gear", label: "Gear" },
+  { id: "plans", label: "Plans" },
   { id: "contacts", label: "Contact" },
   { id: "security", label: "Security" },
 ] as const;
@@ -697,9 +787,9 @@ export default function AdminPage() {
             currency={data.currency}
             onChangeProducts={(products) => setData({ ...data, products })}
             onChangeCategories={(categories) => setData({ ...data, categories })}
-            onChangeCurrency={(currency) => setData({ ...data, currency })}
           />
         )}
+        {activeTab === "plans" && <PlansTab plans={data.workoutPlans || []} onChange={(workoutPlans) => setData({ ...data, workoutPlans })} />}
         {activeTab === "contacts" && <ContactsTab contacts={data.contacts} onChange={(contacts) => setData({ ...data, contacts })} />}
         {activeTab === "security" && <SecurityTab showToast={showToast} />}
       </div>
