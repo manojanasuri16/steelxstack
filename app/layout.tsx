@@ -1,14 +1,28 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { getData } from "@/lib/storage";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "SteelX | Hybrid Athlete",
-  description:
-    "Train with me — discover my fitness apps, gear, and everything I use to build strength and endurance.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const data = await getData();
+  const faviconUrl = data.creator.favicon;
+
+  return {
+    title: `${data.creator.name} | ${data.creator.tagline}`,
+    description: data.creator.bio,
+    ...(faviconUrl
+      ? {
+          icons: {
+            icon: faviconUrl,
+            shortcut: faviconUrl,
+            apple: faviconUrl,
+          },
+        }
+      : {}),
+  };
+}
 
 export default function RootLayout({
   children,

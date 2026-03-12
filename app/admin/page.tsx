@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import ImageUpload from "@/components/ImageUpload";
+import PriceInput from "@/components/admin/PriceInput";
 
 // ─── Types ───
 interface Creator {
@@ -9,6 +10,7 @@ interface Creator {
   tagline: string;
   bio: string;
   profileImage: string;
+  favicon?: string;
   ctaPrimary: { label: string; href: string };
   ctaSecondary: { label: string; href: string };
   ctaTertiary?: { label: string; href: string };
@@ -39,6 +41,7 @@ interface Product {
   buyLinks: BuyLink[];
   note: string;
   price?: number;
+  currency?: string;
   featured?: boolean;
 }
 
@@ -186,7 +189,10 @@ function CreatorTab({ creator, onChange }: { creator: Creator; onChange: (c: Cre
         <Field label="Tagline"><Input value={creator.tagline} onChange={(v) => update("tagline", v)} /></Field>
       </div>
       <Field label="Bio"><TextArea value={creator.bio} onChange={(v) => update("bio", v)} /></Field>
-      <ImageUpload value={creator.profileImage} onChange={(v) => update("profileImage", v)} label="Profile Image" shape="circle" />
+      <div className="grid sm:grid-cols-2 gap-x-6">
+        <ImageUpload value={creator.profileImage} onChange={(v) => update("profileImage", v)} label="Profile Image" shape="circle" />
+        <ImageUpload value={creator.favicon || ""} onChange={(v) => update("favicon", v || undefined)} label="Site Favicon (32x32 recommended)" shape="square" />
+      </div>
       <div className="grid sm:grid-cols-2 gap-x-6">
         <Field label="Primary CTA Label"><Input value={creator.ctaPrimary.label} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, label: v })} /></Field>
         <Field label="Primary CTA Link"><Input value={creator.ctaPrimary.href} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, href: v })} /></Field>
@@ -386,7 +392,20 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
 
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
-                  <Field label="Price"><Input value={product.price?.toString() || ""} onChange={(v) => updateProduct(product.id, { price: v ? parseFloat(v) || undefined : undefined })} placeholder="e.g. 1299" /></Field>
+                  <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-400 mb-1.5">Product Currency</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => updateProduct(product.id, { currency: undefined })} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${!product.currency ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-300 hover:text-white"}`}>
+                      Global ({currency})
+                    </button>
+                    {CURRENCIES.map((c) => (
+                      <button key={c.symbol} type="button" onClick={() => updateProduct(product.id, { currency: c.symbol })} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${product.currency === c.symbol ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-300 hover:text-white"}`}>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-x-6">
                   <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />

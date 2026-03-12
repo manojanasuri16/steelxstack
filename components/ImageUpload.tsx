@@ -1,12 +1,50 @@
 "use client";
 
 import { useState, useRef } from "react";
+import ImageEditorModal from "@/components/admin/ImageEditorModal";
+import CameraCapture from "@/components/admin/CameraCapture";
 
 interface ImageUploadProps {
   value: string;
   onChange: (url: string) => void;
   label?: string;
   shape?: "square" | "circle";
+}
+
+async function optimizeImage(blob: Blob): Promise<Blob> {
+  // If already webp from editor/camera, just check size
+  if (blob.type === "image/webp" && blob.size < 500_000) return blob;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let w = img.width;
+      let h = img.height;
+      if (w > 1200) {
+        h = Math.round(h * (1200 / w));
+        w = 1200;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((out) => resolve(out || blob), "image/webp", 0.8);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => resolve(blob);
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+async function uploadBlob(blob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", blob, `image-${Date.now()}.webp`);
+  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  if (res.ok) {
+    const { url } = await res.json();
+    return url;
+  }
+  throw new Error("Upload failed");
 }
 
 export default function ImageUpload({
@@ -18,36 +56,52 @@ export default function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
+  const [editorSrc, setEditorSrc] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (file: File) => {
+  const openEditor = (source: File | Blob) => {
+    const url = URL.createObjectURL(source);
+    setEditorSrc(url);
+  };
+
+  const handleEditorApply = async (blob: Blob) => {
+    if (editorSrc) URL.revokeObjectURL(editorSrc);
+    setEditorSrc(null);
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (res.ok) {
-        const { url } = await res.json();
-        onChange(url);
-      }
+      const optimized = await optimizeImage(blob);
+      const url = await uploadBlob(optimized);
+      onChange(url);
+    } catch {
+      // silent fail
     } finally {
       setUploading(false);
     }
   };
 
+  const handleEditorClose = () => {
+    if (editorSrc) URL.revokeObjectURL(editorSrc);
+    setEditorSrc(null);
+  };
+
+  const handleCameraCapture = (blob: Blob) => {
+    setShowCamera(false);
+    openEditor(blob);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleUpload(file);
+    if (file && file.type.startsWith("image/")) openEditor(file);
+    // Reset input so same file can be re-selected
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) handleUpload(file);
+    if (file && file.type.startsWith("image/")) openEditor(file);
   };
 
   const isValidImage =
@@ -78,18 +132,24 @@ export default function ImageUpload({
             dragOver
               ? "border-neon bg-neon/10"
               : "border-glass-border hover:border-neon/50"
-          } bg-dark-700 flex items-center justify-center`}
+          } bg-dark-700 flex items-center justify-center group/img`}
         >
           {uploading ? (
             <div className="text-neon text-xs animate-pulse">
-              Uploading...
+              Processing...
             </div>
           ) : isValidImage ? (
-            <img
-              src={value}
-              alt="Preview"
-              className="w-full h-full object-cover"
-            />
+            <>
+              <img
+                src={value}
+                alt="Preview"
+                className="w-full h-full object-cover"
+              />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-white text-[10px] font-medium">Edit</span>
+              </div>
+            </>
           ) : (
             <div className="text-center px-1">
               <svg
@@ -121,13 +181,20 @@ export default function ImageUpload({
 
         {/* Actions */}
         <div className="flex-1 space-y-2">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
             >
-              Upload File
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCamera(true)}
+              className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
+            >
+              📸 Capture
             </button>
             <button
               type="button"
@@ -137,13 +204,25 @@ export default function ImageUpload({
               Paste URL
             </button>
             {value && (
-              <button
-                type="button"
-                onClick={() => onChange("")}
-                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
-              >
-                Remove
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Re-edit current image
+                    if (isValidImage) setEditorSrc(value);
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange("")}
+                  className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Remove
+                </button>
+              </>
             )}
           </div>
 
@@ -158,10 +237,28 @@ export default function ImageUpload({
           )}
 
           <p className="text-[10px] text-gray-600">
-            JPEG, PNG, WebP, SVG, GIF. Max 5MB.
+            JPEG, PNG, WebP, SVG, GIF. Max 5MB. Auto-converts to WebP.
           </p>
         </div>
       </div>
+
+      {/* Image Editor Modal */}
+      {editorSrc && (
+        <ImageEditorModal
+          imageSrc={editorSrc}
+          open={true}
+          onClose={handleEditorClose}
+          onApply={handleEditorApply}
+          shape={shape === "circle" ? "round" : "rect"}
+        />
+      )}
+
+      {/* Camera Capture Modal */}
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCameraCapture}
+      />
     </div>
   );
 }

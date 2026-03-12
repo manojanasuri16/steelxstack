@@ -39,19 +39,20 @@ function getRedis(): Redis | null {
 function migrateData(raw: any): StorefrontData {
   const data = { ...DEFAULT_DATA, ...raw };
 
-  // Migrate products: old affiliateUrl+platform → new buyLinks[]
+  // Migrate products: old affiliateUrl+platform → new buyLinks[], string price → number
   if (data.products) {
     data.products = data.products.map((p: Record<string, unknown>) => {
-      if (!p.buyLinks && (p.affiliateUrl || p.platform)) {
-        return {
-          ...p,
-          buyLinks: p.affiliateUrl
-            ? [{ platform: (p.platform as string) || "Link", url: p.affiliateUrl as string }]
-            : [],
-          price: typeof p.price === "string" ? parseFloat((p.price as string).replace(/[^\d.]/g, "")) || undefined : p.price,
-        };
+      const m = { ...p };
+      if (!m.buyLinks && (m.affiliateUrl || m.platform)) {
+        m.buyLinks = m.affiliateUrl
+          ? [{ platform: (m.platform as string) || "Link", url: m.affiliateUrl as string }]
+          : [];
       }
-      return p;
+      if (typeof m.price === "string") {
+        m.price = parseFloat((m.price as string).replace(/[^\d.]/g, "")) || undefined;
+      }
+      // Old products without per-product currency → undefined (uses global)
+      return m;
     });
   }
 

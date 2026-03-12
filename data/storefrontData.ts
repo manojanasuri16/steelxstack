@@ -3,6 +3,7 @@ export interface Creator {
   tagline: string;
   bio: string;
   profileImage: string;
+  favicon?: string;
   ctaPrimary: { label: string; href: string };
   ctaSecondary: { label: string; href: string };
   ctaTertiary?: { label: string; href: string };
@@ -33,6 +34,7 @@ export interface Product {
   buyLinks: BuyLink[];
   note: string;
   price?: number;
+  currency?: string;
   featured?: boolean;
 }
 

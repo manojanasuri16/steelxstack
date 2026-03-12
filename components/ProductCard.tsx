@@ -121,7 +121,7 @@ export default function ProductCard({
 
         {product.price != null && product.price > 0 && (
           <p className="text-neon font-bold text-base sm:text-lg mb-2">
-            {formatPrice(product.price, currency)}
+            {formatPrice(product.price, product.currency || currency)}
           </p>
         )}
 

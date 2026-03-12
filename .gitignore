@@ -11,3 +11,9 @@ next-env.d.ts
 public/uploads/
 data/local-data.json
 data/totp-secret.json
+
+# Dev memory files
+PROJECT_MEMORY.md
+ARCHITECTURE.md
+TASKS.md
+DECISIONS.md
