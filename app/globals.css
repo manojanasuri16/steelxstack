@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon: #a3e635;
+  --color-neon-cyan: #22d3ee;
+  --color-dark-900: #0a0a0f;
+  --color-dark-800: #111118;
+  --color-dark-700: #1a1a24;
+  --color-dark-600: #24242f;
+  --color-glass: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-dark-900);
+  color: #f5f5f5;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border);
+}
+
+/* Hide scrollbar for carousel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Neon glow */
+.neon-glow {
+  box-shadow: 0 0 20px rgba(163, 230, 53, 0.3), 0 0 60px rgba(163, 230, 53, 0.1);
+}

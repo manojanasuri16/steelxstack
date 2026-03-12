@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src --no-import-alias --use-npm)",
+      "Read(//c/Users/ONJ3KOR/Work/**)",
+      "Bash(npx create-next-app@latest steelxstack-temp --typescript --tailwind --eslint --app --src --no-import-alias --use-npm)",
+      "Bash(npx create-next-app@latest steelxstack-temp --typescript --tailwind --eslint --app --no-src --no-import-alias --use-npm)",
+      "Bash(yes \"\")",
+      "Bash(npx create-next-app@latest steelxstack-temp --ts --tailwind --eslint --app --no-src --no-import-alias --use-npm --turbopack)",
+      "Bash(cp -r /c/Users/ONJ3KOR/Work/steelxstack-temp/* /c/Users/ONJ3KOR/Work/steelxstack/)",
+      "Bash(cp -r /c/Users/ONJ3KOR/Work/steelxstack-temp/.* /c/Users/ONJ3KOR/Work/steelxstack/)",
+      "Bash(rm -rf /c/Users/ONJ3KOR/Work/steelxstack-temp)",
+      "Bash(npm init:*)",
+      "Bash(/c/Users/ONJ3KOR/Work/steelxstack/.gitignore:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\ONJ3KOR\\Work\\steelxstack\\node_modules"
+    ]
+  }
+}
