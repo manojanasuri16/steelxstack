@@ -1,0 +1,965 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+
+interface Creator {
+  name: string;
+  tagline: string;
+  bio: string;
+  profileImage: string;
+  ctaPrimary: { label: string; href: string };
+  ctaSecondary: { label: string; href: string };
+}
+
+interface App {
+  id: string;
+  name: string;
+  logo: string;
+  description: string;
+  profileUrl: string;
+  affiliateUrl?: string;
+  promoCode?: string;
+  highlight?: boolean;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  image: string;
+  affiliateUrl: string;
+  platform: string;
+  note: string;
+  featured?: boolean;
+}
+
+interface StorefrontData {
+  creator: Creator;
+  apps: App[];
+  products: Product[];
+  categories: string[];
+}
+
+// ─── Toast ───
+function Toast({
+  message,
+  type,
+  onClose,
+}: {
+  message: string;
+  type: "success" | "error";
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div
+      className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-lg ${
+        type === "success"
+          ? "bg-green-500/90 text-white"
+          : "bg-red-500/90 text-white"
+      }`}
+    >
+      {message}
+    </div>
+  );
+}
+
+// ─── Login ───
+function LoginForm({ onLogin }: { onLogin: () => void }) {
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    setLoading(false);
+    if (res.ok) {
+      onLogin();
+    } else {
+      setError("Invalid password");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
+      <form
+        onSubmit={handleSubmit}
+        className="glass rounded-2xl p-8 w-full max-w-sm"
+      >
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 rounded-full bg-dark-700 border border-neon/50 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl font-bold text-neon">SX</span>
+          </div>
+          <h1 className="text-xl font-bold text-white">Admin Panel</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Enter your admin password
+          </p>
+        </div>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          placeholder="Password"
+          className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neon/50 mb-3"
+        />
+        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50"
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ─── Field helpers ───
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-400 mb-1.5">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function Input({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50"
+    />
+  );
+}
+
+function TextArea({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={3}
+      className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 resize-none"
+    />
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer">
+      <div
+        onClick={() => onChange(!checked)}
+        className={`w-10 h-6 rounded-full flex items-center px-1 transition-colors ${
+          checked ? "bg-neon" : "bg-dark-600"
+        }`}
+      >
+        <div
+          className={`w-4 h-4 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </div>
+      <span className="text-sm text-gray-300">{label}</span>
+    </label>
+  );
+}
+
+// ─── URL Fetch Button ───
+function FetchButton({
+  url,
+  onFetched,
+}: {
+  url: string;
+  onFetched: (meta: {
+    title: string;
+    description: string;
+    image: string;
+    favicon: string;
+    siteName: string;
+  }) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const handleFetch = async () => {
+    if (!url) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        const meta = await res.json();
+        onFetched(meta);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleFetch}
+      disabled={!url || loading}
+      className="px-3 py-2 text-xs font-medium bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan/30 transition-colors disabled:opacity-40 whitespace-nowrap"
+    >
+      {loading ? "Fetching..." : "Auto-Fill from URL"}
+    </button>
+  );
+}
+
+// ─── Creator Tab ───
+function CreatorTab({
+  creator,
+  onChange,
+}: {
+  creator: Creator;
+  onChange: (c: Creator) => void;
+}) {
+  const update = (key: keyof Creator, value: unknown) =>
+    onChange({ ...creator, [key]: value });
+
+  return (
+    <div className="glass rounded-2xl p-6">
+      <h3 className="text-lg font-bold text-white mb-4">Creator Profile</h3>
+      <div className="grid sm:grid-cols-2 gap-x-6">
+        <Field label="Name">
+          <Input
+            value={creator.name}
+            onChange={(v) => update("name", v)}
+          />
+        </Field>
+        <Field label="Tagline">
+          <Input
+            value={creator.tagline}
+            onChange={(v) => update("tagline", v)}
+          />
+        </Field>
+      </div>
+      <Field label="Bio">
+        <TextArea
+          value={creator.bio}
+          onChange={(v) => update("bio", v)}
+        />
+      </Field>
+      <Field label="Profile Image URL">
+        <Input
+          value={creator.profileImage}
+          onChange={(v) => update("profileImage", v)}
+        />
+      </Field>
+      <div className="grid sm:grid-cols-2 gap-x-6">
+        <Field label="Primary CTA Label">
+          <Input
+            value={creator.ctaPrimary.label}
+            onChange={(v) =>
+              update("ctaPrimary", { ...creator.ctaPrimary, label: v })
+            }
+          />
+        </Field>
+        <Field label="Primary CTA Link">
+          <Input
+            value={creator.ctaPrimary.href}
+            onChange={(v) =>
+              update("ctaPrimary", { ...creator.ctaPrimary, href: v })
+            }
+          />
+        </Field>
+        <Field label="Secondary CTA Label">
+          <Input
+            value={creator.ctaSecondary.label}
+            onChange={(v) =>
+              update("ctaSecondary", { ...creator.ctaSecondary, label: v })
+            }
+          />
+        </Field>
+        <Field label="Secondary CTA Link">
+          <Input
+            value={creator.ctaSecondary.href}
+            onChange={(v) =>
+              update("ctaSecondary", { ...creator.ctaSecondary, href: v })
+            }
+          />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+// ─── Apps Tab ───
+function AppsTab({
+  apps,
+  onChange,
+}: {
+  apps: App[];
+  onChange: (a: App[]) => void;
+}) {
+  const [editing, setEditing] = useState<string | null>(null);
+
+  const updateApp = (id: string, updates: Partial<App>) => {
+    onChange(apps.map((a) => (a.id === id ? { ...a, ...updates } : a)));
+  };
+
+  const deleteApp = (id: string) => {
+    onChange(apps.filter((a) => a.id !== id));
+    setEditing(null);
+  };
+
+  const addApp = () => {
+    const newApp: App = {
+      id: `app-${Date.now()}`,
+      name: "",
+      logo: "",
+      description: "",
+      profileUrl: "",
+    };
+    onChange([...apps, newApp]);
+    setEditing(newApp.id);
+  };
+
+  return (
+    <div className="space-y-4">
+      {apps.map((app) => (
+        <div key={app.id} className="glass rounded-2xl overflow-hidden">
+          <div
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+            onClick={() =>
+              setEditing(editing === app.id ? null : app.id)
+            }
+          >
+            <div className="flex items-center gap-3">
+              {app.logo ? (
+                <img
+                  src={app.logo}
+                  alt=""
+                  className="w-10 h-10 rounded-lg object-cover bg-dark-700"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-neon font-bold">
+                  {app.name?.charAt(0) || "?"}
+                </div>
+              )}
+              <div>
+                <p className="text-white font-medium">
+                  {app.name || "New App"}
+                </p>
+                <p className="text-gray-500 text-xs">
+                  {app.profileUrl || "No URL set"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {app.highlight && (
+                <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">
+                  Recommended
+                </span>
+              )}
+              <span className="text-gray-500 text-sm">
+                {editing === app.id ? "\u25B2" : "\u25BC"}
+              </span>
+            </div>
+          </div>
+
+          {editing === app.id && (
+            <div className="p-4 pt-0 border-t border-glass-border">
+              <div className="pt-4 space-y-0">
+                <div className="flex gap-2 items-end mb-4">
+                  <div className="flex-1">
+                    <Field label="Profile / Website URL">
+                      <Input
+                        value={app.profileUrl}
+                        onChange={(v) =>
+                          updateApp(app.id, { profileUrl: v })
+                        }
+                        placeholder="https://..."
+                      />
+                    </Field>
+                  </div>
+                  <div className="mb-4">
+                    <FetchButton
+                      url={app.profileUrl}
+                      onFetched={(meta) =>
+                        updateApp(app.id, {
+                          name: meta.title || app.name,
+                          description:
+                            meta.description || app.description,
+                          logo:
+                            meta.favicon || meta.image || app.logo,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-x-6">
+                  <Field label="App Name">
+                    <Input
+                      value={app.name}
+                      onChange={(v) =>
+                        updateApp(app.id, { name: v })
+                      }
+                    />
+                  </Field>
+                  <Field label="Logo / Icon URL">
+                    <Input
+                      value={app.logo}
+                      onChange={(v) =>
+                        updateApp(app.id, { logo: v })
+                      }
+                    />
+                  </Field>
+                </div>
+                <Field label="Description">
+                  <TextArea
+                    value={app.description}
+                    onChange={(v) =>
+                      updateApp(app.id, { description: v })
+                    }
+                  />
+                </Field>
+                <div className="grid sm:grid-cols-2 gap-x-6">
+                  <Field label="Affiliate URL (optional)">
+                    <Input
+                      value={app.affiliateUrl || ""}
+                      onChange={(v) =>
+                        updateApp(app.id, {
+                          affiliateUrl: v || undefined,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Promo Code (optional)">
+                    <Input
+                      value={app.promoCode || ""}
+                      onChange={(v) =>
+                        updateApp(app.id, {
+                          promoCode: v || undefined,
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <Toggle
+                    checked={!!app.highlight}
+                    onChange={(v) =>
+                      updateApp(app.id, { highlight: v })
+                    }
+                    label="Show as Recommended"
+                  />
+                  <button
+                    onClick={() => deleteApp(app.id)}
+                    className="text-red-400 text-sm hover:text-red-300 transition-colors"
+                  >
+                    Delete App
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <button
+        onClick={addApp}
+        className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium"
+      >
+        + Add New App
+      </button>
+    </div>
+  );
+}
+
+// ─── Products Tab ───
+function GearTab({
+  products,
+  categories,
+  onChangeProducts,
+  onChangeCategories,
+}: {
+  products: Product[];
+  categories: string[];
+  onChangeProducts: (p: Product[]) => void;
+  onChangeCategories: (c: string[]) => void;
+}) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [newCat, setNewCat] = useState("");
+
+  const updateProduct = (id: string, updates: Partial<Product>) => {
+    onChangeProducts(
+      products.map((p) => (p.id === id ? { ...p, ...updates } : p))
+    );
+  };
+
+  const deleteProduct = (id: string) => {
+    onChangeProducts(products.filter((p) => p.id !== id));
+    setEditing(null);
+  };
+
+  const addProduct = () => {
+    const np: Product = {
+      id: `prod-${Date.now()}`,
+      name: "",
+      category: categories[0] || "Other",
+      image: "",
+      affiliateUrl: "",
+      platform: "Amazon",
+      note: "",
+    };
+    onChangeProducts([...products, np]);
+    setEditing(np.id);
+  };
+
+  const addCategory = () => {
+    const trimmed = newCat.trim();
+    if (trimmed && !categories.includes(trimmed)) {
+      onChangeCategories([...categories, trimmed]);
+      setNewCat("");
+    }
+  };
+
+  const removeCategory = (cat: string) => {
+    onChangeCategories(categories.filter((c) => c !== cat));
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Categories Manager */}
+      <div className="glass rounded-2xl p-5">
+        <h3 className="text-sm font-bold text-white mb-3">Categories</h3>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {categories.map((cat) => (
+            <span
+              key={cat}
+              className="flex items-center gap-1.5 bg-dark-700 text-gray-300 text-sm px-3 py-1.5 rounded-full"
+            >
+              {cat}
+              <button
+                onClick={() => removeCategory(cat)}
+                className="text-gray-500 hover:text-red-400 transition-colors ml-1"
+              >
+                x
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={newCat}
+            onChange={(e) => setNewCat(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCategory()}
+            placeholder="New category name..."
+            className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50"
+          />
+          <button
+            onClick={addCategory}
+            className="px-4 py-2 bg-neon text-dark-900 rounded-lg text-sm font-bold hover:brightness-110 transition-all"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      {/* Products List */}
+      {products.map((product) => (
+        <div key={product.id} className="glass rounded-2xl overflow-hidden">
+          <div
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+            onClick={() =>
+              setEditing(editing === product.id ? null : product.id)
+            }
+          >
+            <div className="flex items-center gap-3">
+              {product.image ? (
+                <img
+                  src={product.image}
+                  alt=""
+                  className="w-10 h-10 rounded-lg object-cover bg-dark-700"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-gray-600 font-bold text-sm">
+                  {product.name?.charAt(0) || "?"}
+                </div>
+              )}
+              <div>
+                <p className="text-white font-medium text-sm">
+                  {product.name || "New Product"}
+                </p>
+                <p className="text-gray-500 text-xs">
+                  {product.category} &middot; {product.platform}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {product.featured && (
+                <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">
+                  Featured
+                </span>
+              )}
+              <span className="text-gray-500 text-sm">
+                {editing === product.id ? "\u25B2" : "\u25BC"}
+              </span>
+            </div>
+          </div>
+
+          {editing === product.id && (
+            <div className="p-4 pt-0 border-t border-glass-border">
+              <div className="pt-4 space-y-0">
+                <div className="flex gap-2 items-end mb-4">
+                  <div className="flex-1">
+                    <Field label="Product / Affiliate URL">
+                      <Input
+                        value={product.affiliateUrl}
+                        onChange={(v) =>
+                          updateProduct(product.id, {
+                            affiliateUrl: v,
+                          })
+                        }
+                        placeholder="https://amazon.in/..."
+                      />
+                    </Field>
+                  </div>
+                  <div className="mb-4">
+                    <FetchButton
+                      url={product.affiliateUrl}
+                      onFetched={(meta) =>
+                        updateProduct(product.id, {
+                          name: meta.title || product.name,
+                          image: meta.image || product.image,
+                          platform:
+                            meta.siteName || product.platform,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-x-6">
+                  <Field label="Product Name">
+                    <Input
+                      value={product.name}
+                      onChange={(v) =>
+                        updateProduct(product.id, { name: v })
+                      }
+                    />
+                  </Field>
+                  <Field label="Image URL">
+                    <Input
+                      value={product.image}
+                      onChange={(v) =>
+                        updateProduct(product.id, { image: v })
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-x-6">
+                  <Field label="Category">
+                    <select
+                      value={product.category}
+                      onChange={(e) =>
+                        updateProduct(product.id, {
+                          category: e.target.value,
+                        })
+                      }
+                      className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50"
+                    >
+                      {categories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Platform">
+                    <Input
+                      value={product.platform}
+                      onChange={(v) =>
+                        updateProduct(product.id, { platform: v })
+                      }
+                      placeholder="Amazon, Myntra, Flipkart..."
+                    />
+                  </Field>
+                </div>
+                <Field label="Personal Note">
+                  <TextArea
+                    value={product.note}
+                    onChange={(v) =>
+                      updateProduct(product.id, { note: v })
+                    }
+                    placeholder="Why do you recommend this?"
+                  />
+                </Field>
+                <div className="flex items-center justify-between pt-2">
+                  <Toggle
+                    checked={!!product.featured}
+                    onChange={(v) =>
+                      updateProduct(product.id, { featured: v })
+                    }
+                    label="Featured Product"
+                  />
+                  <button
+                    onClick={() => deleteProduct(product.id)}
+                    className="text-red-400 text-sm hover:text-red-300 transition-colors"
+                  >
+                    Delete Product
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <button
+        onClick={addProduct}
+        className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium"
+      >
+        + Add New Product
+      </button>
+    </div>
+  );
+}
+
+// ─── Main Admin Page ───
+const TABS = [
+  { id: "creator", label: "Profile" },
+  { id: "apps", label: "Training Apps" },
+  { id: "gear", label: "Shop My Gear" },
+] as const;
+
+export default function AdminPage() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [data, setData] = useState<StorefrontData | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("creator");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
+
+  const showToast = useCallback(
+    (message: string, type: "success" | "error") => {
+      setToast({ message, type });
+    },
+    []
+  );
+
+  // Check existing session
+  useEffect(() => {
+    fetch("/api/auth/check")
+      .then((r) => r.json())
+      .then((d) => {
+        setAuthenticated(d.authenticated);
+        setChecking(false);
+      })
+      .catch(() => setChecking(false));
+  }, []);
+
+  // Load data after auth
+  useEffect(() => {
+    if (!authenticated) return;
+    fetch("/api/data")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => showToast("Failed to load data", "error"));
+  }, [authenticated, showToast]);
+
+  const handleSave = async () => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/data", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        showToast("Changes saved!", "success");
+      } else {
+        showToast("Failed to save", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setAuthenticated(false);
+    setData(null);
+  };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginForm onLogin={() => setAuthenticated(true)} />;
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+        <div className="text-gray-500">Loading data...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-dark-900 pb-20">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 glass border-b border-glass-border">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-neon flex items-center justify-center">
+              <span className="text-dark-900 font-bold text-xs">SX</span>
+            </div>
+            <h1 className="text-white font-bold text-sm sm:text-base">
+              Admin Panel
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/"
+              target="_blank"
+              className="text-gray-400 hover:text-white text-sm transition-colors px-3 py-1.5"
+            >
+              View Site
+            </a>
+            <button
+              onClick={handleLogout}
+              className="text-gray-400 hover:text-red-400 text-sm transition-colors px-3 py-1.5"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <div className="sticky top-[57px] z-30 bg-dark-900/80 backdrop-blur-sm border-b border-glass-border">
+        <div className="max-w-4xl mx-auto px-4 flex gap-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium transition-colors relative ${
+                activeTab === tab.id
+                  ? "text-neon"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {activeTab === "creator" && (
+          <CreatorTab
+            creator={data.creator}
+            onChange={(creator) => setData({ ...data, creator })}
+          />
+        )}
+        {activeTab === "apps" && (
+          <AppsTab
+            apps={data.apps}
+            onChange={(apps) => setData({ ...data, apps })}
+          />
+        )}
+        {activeTab === "gear" && (
+          <GearTab
+            products={data.products}
+            categories={data.categories}
+            onChangeProducts={(products) =>
+              setData({ ...data, products })
+            }
+            onChangeCategories={(categories) =>
+              setData({ ...data, categories })
+            }
+          />
+        )}
+      </div>
+
+      {/* Sticky Save Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 glass border-t border-glass-border">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-8 py-2.5 rounded-xl font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50 text-sm"
+          >
+            {saving ? "Saving..." : "Save All Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
