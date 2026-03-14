@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SectionWrapper from "@/components/SectionWrapper";
 import AppCard from "@/components/AppCard";
@@ -36,6 +36,27 @@ function getSocialLabel(url: string): string {
   }
 }
 
+// ─── Theme Toggle ───
+function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all group"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {isDark ? (
+        <svg className="w-5 h-5 text-yellow-400 group-hover:rotate-45 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5 text-indigo-400 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 interface StorefrontPageProps {
   creator: Creator;
   apps: App[];
@@ -60,6 +81,28 @@ export default function StorefrontPage({
   const allCategories = ["All", ...categories];
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDark, setIsDark] = useState(true);
+
+  // Persist theme preference
+  useEffect(() => {
+    const saved = localStorage.getItem("sx-theme");
+    if (saved === "light") {
+      setIsDark(false);
+      document.body.classList.add("light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newDark = !isDark;
+    setIsDark(newDark);
+    if (newDark) {
+      document.body.classList.remove("light");
+      localStorage.setItem("sx-theme", "dark");
+    } else {
+      document.body.classList.add("light");
+      localStorage.setItem("sx-theme", "light");
+    }
+  };
 
   const filteredProducts =
     activeCategory === "All"
@@ -77,6 +120,8 @@ export default function StorefrontPage({
 
   return (
     <main className="min-h-screen">
+      <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+
       {/* HERO */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900" />
@@ -202,7 +247,7 @@ export default function StorefrontPage({
                 ) : (
                   <div className="aspect-[16/9] bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center">
                     <span className="text-3xl font-bold text-dark-600">
-                      {plan.type === "gym" ? "🏋️" : plan.type === "running" ? "🏃" : plan.type === "hybrid" ? "⚡" : "📋"}
+                      {plan.type === "gym" ? "\u{1F3CB}\uFE0F" : plan.type === "running" ? "\u{1F3C3}" : plan.type === "hybrid" ? "\u26A1" : "\u{1F4CB}"}
                     </span>
                   </div>
                 )}
@@ -232,7 +277,7 @@ export default function StorefrontPage({
 
                   <div className="flex items-center gap-3 text-[11px] text-gray-400">
                     {plan.duration && <span>{plan.duration}</span>}
-                    {plan.duration && plan.level && <span className="text-dark-600">·</span>}
+                    {plan.duration && plan.level && <span className="text-dark-600">&middot;</span>}
                     {plan.level && <span>{plan.level}</span>}
                   </div>
                 </div>
@@ -393,6 +438,11 @@ export default function StorefrontPage({
 
       {/* FOOTER */}
       <footer className="py-8 sm:py-10 px-4 text-center border-t border-glass-border">
+        {creator.footerText && (
+          <p className="text-gray-500 text-[11px] sm:text-xs leading-relaxed mb-3 max-w-lg mx-auto">
+            {creator.footerText}
+          </p>
+        )}
         <p className="text-gray-500 text-xs sm:text-sm">
           &copy; {new Date().getFullYear()} {creator.name}. All rights
           reserved.

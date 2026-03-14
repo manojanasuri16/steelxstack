@@ -3,6 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import ImageUpload from "@/components/ImageUpload";
 import PriceInput from "@/components/admin/PriceInput";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ─── Types ───
 interface Creator {
@@ -14,6 +30,9 @@ interface Creator {
   ctaPrimary: { label: string; href: string };
   ctaSecondary: { label: string; href: string };
   ctaTertiary?: { label: string; href: string };
+  adminLogo?: string;
+  adminTitle?: string;
+  footerText?: string;
 }
 
 interface App {
@@ -157,8 +176,8 @@ function Input({ value, onChange, placeholder, type = "text" }: { value: string;
   return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />;
 }
 
-function TextArea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 resize-none" />;
+function TextArea({ value, onChange, placeholder, rows = 3 }: { value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
+  return <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 resize-none" />;
 }
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -190,24 +209,50 @@ function FetchButton({ url, onFetched }: { url: string; onFetched: (meta: { titl
 function CreatorTab({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
   const update = (key: keyof Creator, value: unknown) => onChange({ ...creator, [key]: value });
   return (
-    <div className="glass rounded-2xl p-6">
-      <h3 className="text-lg font-bold text-white mb-4">Creator Profile</h3>
-      <div className="grid sm:grid-cols-2 gap-x-6">
-        <Field label="Name"><Input value={creator.name} onChange={(v) => update("name", v)} /></Field>
-        <Field label="Tagline"><Input value={creator.tagline} onChange={(v) => update("tagline", v)} /></Field>
+    <div className="space-y-6">
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Creator Profile</h3>
+        <div className="grid sm:grid-cols-2 gap-x-6">
+          <Field label="Name"><Input value={creator.name} onChange={(v) => update("name", v)} /></Field>
+          <Field label="Tagline"><Input value={creator.tagline} onChange={(v) => update("tagline", v)} /></Field>
+        </div>
+        <Field label="Bio"><TextArea value={creator.bio} onChange={(v) => update("bio", v)} /></Field>
+        <div className="grid sm:grid-cols-2 gap-x-6">
+          <ImageUpload value={creator.profileImage} onChange={(v) => update("profileImage", v)} label="Profile Image" shape="circle" />
+          <ImageUpload value={creator.favicon || ""} onChange={(v) => update("favicon", v || undefined)} label="Site Favicon (32x32 recommended)" shape="square" />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-x-6">
+          <Field label="Primary CTA Label"><Input value={creator.ctaPrimary.label} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, label: v })} /></Field>
+          <Field label="Primary CTA Link"><Input value={creator.ctaPrimary.href} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, href: v })} /></Field>
+          <Field label="Secondary CTA Label"><Input value={creator.ctaSecondary.label} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, label: v })} /></Field>
+          <Field label="Secondary CTA Link"><Input value={creator.ctaSecondary.href} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, href: v })} /></Field>
+          <Field label="Third CTA Label (optional)"><Input value={creator.ctaTertiary?.label || ""} onChange={(v) => update("ctaTertiary", { label: v, href: creator.ctaTertiary?.href || "#contact" })} placeholder="Connect With Me" /></Field>
+          <Field label="Third CTA Link"><Input value={creator.ctaTertiary?.href || ""} onChange={(v) => update("ctaTertiary", { ...creator.ctaTertiary, label: creator.ctaTertiary?.label || "Connect With Me", href: v })} placeholder="#contact" /></Field>
+        </div>
       </div>
-      <Field label="Bio"><TextArea value={creator.bio} onChange={(v) => update("bio", v)} /></Field>
-      <div className="grid sm:grid-cols-2 gap-x-6">
-        <ImageUpload value={creator.profileImage} onChange={(v) => update("profileImage", v)} label="Profile Image" shape="circle" />
-        <ImageUpload value={creator.favicon || ""} onChange={(v) => update("favicon", v || undefined)} label="Site Favicon (32x32 recommended)" shape="square" />
+
+      {/* Admin Branding */}
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Admin Panel Branding</h3>
+        <p className="text-gray-500 text-xs mb-4">Customize the logo and title shown in the admin panel header bar.</p>
+        <div className="grid sm:grid-cols-2 gap-x-6">
+          <Field label="Admin Header Title"><Input value={creator.adminTitle || "SX"} onChange={(v) => update("adminTitle", v)} placeholder="SX" /></Field>
+          <ImageUpload value={creator.adminLogo || ""} onChange={(v) => update("adminLogo", v || undefined)} label="Admin Header Logo (optional, replaces text)" shape="square" />
+        </div>
       </div>
-      <div className="grid sm:grid-cols-2 gap-x-6">
-        <Field label="Primary CTA Label"><Input value={creator.ctaPrimary.label} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, label: v })} /></Field>
-        <Field label="Primary CTA Link"><Input value={creator.ctaPrimary.href} onChange={(v) => update("ctaPrimary", { ...creator.ctaPrimary, href: v })} /></Field>
-        <Field label="Secondary CTA Label"><Input value={creator.ctaSecondary.label} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, label: v })} /></Field>
-        <Field label="Secondary CTA Link"><Input value={creator.ctaSecondary.href} onChange={(v) => update("ctaSecondary", { ...creator.ctaSecondary, href: v })} /></Field>
-        <Field label="Third CTA Label (optional)"><Input value={creator.ctaTertiary?.label || ""} onChange={(v) => update("ctaTertiary", { label: v, href: creator.ctaTertiary?.href || "#contact" })} placeholder="Connect With Me" /></Field>
-        <Field label="Third CTA Link"><Input value={creator.ctaTertiary?.href || ""} onChange={(v) => update("ctaTertiary", { ...creator.ctaTertiary, label: creator.ctaTertiary?.label || "Connect With Me", href: v })} placeholder="#contact" /></Field>
+
+      {/* Footer / Affiliate Disclosure */}
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">Footer Text</h3>
+        <p className="text-gray-500 text-xs mb-4">Add an affiliate disclosure or any text to the footer. Leave empty to hide.</p>
+        <Field label="Footer Text">
+          <TextArea
+            value={creator.footerText || ""}
+            onChange={(v) => update("footerText", v)}
+            placeholder="Some of the links on this page are affiliate links. This means I may earn a small commission at no extra cost to you if you make a purchase through these links."
+            rows={3}
+          />
+        </Field>
       </div>
     </div>
   );
@@ -269,6 +314,121 @@ function AppsTab({ apps, onChange }: { apps: App[]; onChange: (a: App[]) => void
   );
 }
 
+// ─── Sortable Product Item ───
+function SortableProductItem({ product, products, categories, currency, editing, setEditing, updateProduct, deleteProduct, updateBuyLink, addBuyLink, removeBuyLink }: {
+  product: Product;
+  products: Product[];
+  categories: string[];
+  currency: string;
+  editing: string | null;
+  setEditing: (id: string | null) => void;
+  updateProduct: (id: string, u: Partial<Product>) => void;
+  deleteProduct: (id: string) => void;
+  updateBuyLink: (prodId: string, idx: number, field: keyof BuyLink, value: string) => void;
+  addBuyLink: (prodId: string) => void;
+  removeBuyLink: (prodId: string, idx: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : "auto" as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="glass rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === product.id ? null : product.id)}>
+        <div className="flex items-center gap-3">
+          {/* Drag Handle */}
+          <div
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-1 text-gray-500 hover:text-white transition-colors"
+            title="Drag to reorder"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+            </svg>
+          </div>
+          {product.image && (product.image.startsWith("http") || product.image.startsWith("/uploads/")) ? (
+            <img src={product.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
+          ) : (
+            <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-gray-600 font-bold text-sm">{product.name?.charAt(0) || "?"}</div>
+          )}
+          <div>
+            <p className="text-white font-medium text-sm">{product.name || "New Product"}</p>
+            <p className="text-gray-500 text-xs">{product.category}{product.price ? ` \u00B7 ${product.currency || currency}${product.price.toLocaleString()}` : ""}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {product.featured && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Featured</span>}
+          <span className="text-gray-500 text-sm">{editing === product.id ? "\u25B2" : "\u25BC"}</span>
+        </div>
+      </div>
+
+      {editing === product.id && (
+        <div className="p-4 pt-0 border-t border-glass-border">
+          <div className="pt-4">
+            {/* Buy Links */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-400 mb-2">Buy Links</label>
+              {product.buyLinks.map((link, idx) => (
+                <div key={idx} className="flex gap-2 mb-2 items-center">
+                  <input value={link.platform} onChange={(e) => updateBuyLink(product.id, idx, "platform", e.target.value)} placeholder="Platform (Amazon, Flipkart...)" className="w-1/3 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+                  <input value={link.url} onChange={(e) => updateBuyLink(product.id, idx, "url", e.target.value)} placeholder="https://..." className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
+                  <FetchButton url={link.url} onFetched={(m) => {
+                    const updates: Partial<Product> = {
+                      name: m.title || product.name,
+                      image: m.image || product.image,
+                    };
+                    // Auto-fill price from URL only if user hasn't manually set one
+                    if (m.price && !product.price) {
+                      const parsed = parseFloat(m.price.replace(/[^\d.]/g, ""));
+                      if (parsed > 0) updates.price = parsed;
+                    }
+                    updateProduct(product.id, updates);
+                    if (!link.platform && m.siteName) updateBuyLink(product.id, idx, "platform", m.siteName);
+                  }} />
+                  {product.buyLinks.length > 1 && (
+                    <button onClick={() => removeBuyLink(product.id, idx)} className="text-red-400 hover:text-red-300 text-lg px-1">x</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={() => addBuyLink(product.id)} className="text-neon-cyan text-xs hover:underline mt-1">+ Add another link</button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-x-6">
+              <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
+              <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} onCurrencyChange={(v) => updateProduct(product.id, { currency: v })} />
+            </div>
+            <p className="text-gray-500 text-[11px] -mt-2 mb-3">Price auto-fetched from URL if left empty. Set manually to override.</p>
+            <div className="grid sm:grid-cols-2 gap-x-6">
+              <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
+              <ImageUpload value={product.wornImage || ""} onChange={(v) => updateProduct(product.id, { wornImage: v || undefined })} label="Worn / On Me Image" />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-x-6">
+              <Field label="Category">
+                <select value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
+                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </Field>
+              <div />
+            </div>
+            <Field label="Personal Note"><TextArea value={product.note} onChange={(v) => updateProduct(product.id, { note: v })} placeholder="Why do you recommend this?" /></Field>
+            <div className="flex items-center justify-between pt-2">
+              <Toggle checked={!!product.featured} onChange={(v) => updateProduct(product.id, { featured: v })} label="Featured Product" />
+              <button onClick={() => deleteProduct(product.id)} className="text-red-400 text-sm hover:text-red-300">Delete Product</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Gear Tab ───
 function GearTab({ products, categories, currency, onChangeProducts, onChangeCategories }: {
   products: Product[]; categories: string[]; currency: string;
@@ -277,17 +437,13 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
   const [editing, setEditing] = useState<string | null>(null);
   const [newCat, setNewCat] = useState("");
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
   const updateProduct = (id: string, u: Partial<Product>) => onChangeProducts(products.map((p) => (p.id === id ? { ...p, ...u } : p)));
   const deleteProduct = (id: string) => { onChangeProducts(products.filter((p) => p.id !== id)); setEditing(null); };
-  const moveProduct = (id: string, direction: "up" | "down") => {
-    const idx = products.findIndex((p) => p.id === id);
-    if (idx < 0) return;
-    const target = direction === "up" ? idx - 1 : idx + 1;
-    if (target < 0 || target >= products.length) return;
-    const reordered = [...products];
-    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
-    onChangeProducts(reordered);
-  };
 
   const addProduct = () => {
     const np: Product = { id: `prod-${Date.now()}`, name: "", category: categories[0] || "Other", image: "", buyLinks: [{ platform: "Amazon", url: "" }], note: "" };
@@ -316,6 +472,15 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
     updateProduct(prodId, { buyLinks: prod.buyLinks.filter((_, i) => i !== idx) });
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = products.findIndex((p) => p.id === active.id);
+      const newIndex = products.findIndex((p) => p.id === over.id);
+      onChangeProducts(arrayMove(products, oldIndex, newIndex));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Categories */}
@@ -337,83 +502,30 @@ function GearTab({ products, categories, currency, onChangeProducts, onChangeCat
         </div>
       </div>
 
-      {/* Products */}
-      {products.map((product) => (
-        <div key={product.id} className="glass rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === product.id ? null : product.id)}>
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => moveProduct(product.id, "up")} disabled={products.indexOf(product) === 0} className="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5">&#9650;</button>
-                <button onClick={() => moveProduct(product.id, "down")} disabled={products.indexOf(product) === products.length - 1} className="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5">&#9660;</button>
-              </div>
-              {product.image && (product.image.startsWith("http") || product.image.startsWith("/uploads/")) ? (
-                <img src={product.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-gray-600 font-bold text-sm">{product.name?.charAt(0) || "?"}</div>
-              )}
-              <div>
-                <p className="text-white font-medium text-sm">{product.name || "New Product"}</p>
-                <p className="text-gray-500 text-xs">{product.category}{product.price ? ` \u00B7 ${currency}${product.price.toLocaleString()}` : ""}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {product.featured && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Featured</span>}
-              <span className="text-gray-500 text-sm">{editing === product.id ? "\u25B2" : "\u25BC"}</span>
-            </div>
+      {/* Products — Drag & Drop */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={products.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {products.map((product) => (
+              <SortableProductItem
+                key={product.id}
+                product={product}
+                products={products}
+                categories={categories}
+                currency={currency}
+                editing={editing}
+                setEditing={setEditing}
+                updateProduct={updateProduct}
+                deleteProduct={deleteProduct}
+                updateBuyLink={updateBuyLink}
+                addBuyLink={addBuyLink}
+                removeBuyLink={removeBuyLink}
+              />
+            ))}
           </div>
+        </SortableContext>
+      </DndContext>
 
-          {editing === product.id && (
-            <div className="p-4 pt-0 border-t border-glass-border">
-              <div className="pt-4">
-                {/* Buy Links */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Buy Links</label>
-                  {product.buyLinks.map((link, idx) => (
-                    <div key={idx} className="flex gap-2 mb-2 items-center">
-                      <input value={link.platform} onChange={(e) => updateBuyLink(product.id, idx, "platform", e.target.value)} placeholder="Platform (Amazon, Flipkart...)" className="w-1/3 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
-                      <input value={link.url} onChange={(e) => updateBuyLink(product.id, idx, "url", e.target.value)} placeholder="https://..." className="flex-1 bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50" />
-                      <FetchButton url={link.url} onFetched={(m) => {
-                        updateProduct(product.id, {
-                          name: m.title || product.name,
-                          image: m.image || product.image,
-                          price: m.price ? parseFloat(m.price.replace(/[^\d.]/g, "")) || product.price : product.price,
-                        });
-                        if (!link.platform && m.siteName) updateBuyLink(product.id, idx, "platform", m.siteName);
-                      }} />
-                      {product.buyLinks.length > 1 && (
-                        <button onClick={() => removeBuyLink(product.id, idx)} className="text-red-400 hover:text-red-300 text-lg px-1">x</button>
-                      )}
-                    </div>
-                  ))}
-                  <button onClick={() => addBuyLink(product.id)} className="text-neon-cyan text-xs hover:underline mt-1">+ Add another link</button>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-x-6">
-                  <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
-                  <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} onCurrencyChange={(v) => updateProduct(product.id, { currency: v })} />
-                </div>
-                <div className="grid sm:grid-cols-2 gap-x-6">
-                  <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
-                  <ImageUpload value={product.wornImage || ""} onChange={(v) => updateProduct(product.id, { wornImage: v || undefined })} label="Worn / On Me Image" />
-                </div>
-                <div className="grid sm:grid-cols-2 gap-x-6">
-                  <Field label="Category">
-                    <select value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
-                      {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </Field>
-                  <div />
-                </div>
-                <Field label="Personal Note"><TextArea value={product.note} onChange={(v) => updateProduct(product.id, { note: v })} placeholder="Why do you recommend this?" /></Field>
-                <div className="flex items-center justify-between pt-2">
-                  <Toggle checked={!!product.featured} onChange={(v) => updateProduct(product.id, { featured: v })} label="Featured Product" />
-                  <button onClick={() => deleteProduct(product.id)} className="text-red-400 text-sm hover:text-red-300">Delete Product</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
       <button onClick={addProduct} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add New Product</button>
     </div>
   );
@@ -749,6 +861,9 @@ export default function AdminPage() {
   if (!authenticated) return <LoginForm onLogin={() => setAuthenticated(true)} />;
   if (!data) return <div className="min-h-screen bg-dark-900 flex items-center justify-center"><div className="text-gray-500">Loading data...</div></div>;
 
+  const adminTitle = data.creator.adminTitle || "SX";
+  const adminLogo = data.creator.adminLogo;
+
   return (
     <div className="min-h-screen bg-dark-900 pb-20">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -756,7 +871,13 @@ export default function AdminPage() {
       <header className="sticky top-0 z-40 glass border-b border-glass-border">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-neon flex items-center justify-center"><span className="text-dark-900 font-bold text-xs">SX</span></div>
+            {adminLogo && (adminLogo.startsWith("http") || adminLogo.startsWith("/uploads/")) ? (
+              <img src={adminLogo} alt="" className="w-8 h-8 rounded-lg object-cover" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-neon flex items-center justify-center">
+                <span className="text-dark-900 font-bold text-xs">{adminTitle.slice(0, 3)}</span>
+              </div>
+            )}
             <h1 className="text-white font-bold text-sm sm:text-base">Admin Panel</h1>
           </div>
           <div className="flex items-center gap-2">

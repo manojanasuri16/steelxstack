@@ -7,6 +7,9 @@ export interface Creator {
   ctaPrimary: { label: string; href: string };
   ctaSecondary: { label: string; href: string };
   ctaTertiary?: { label: string; href: string };
+  adminLogo?: string;
+  adminTitle?: string;
+  footerText?: string;
 }
 
 export interface App {
@@ -73,6 +76,8 @@ export const creator: Creator = {
   ctaPrimary: { label: "Train With Me", href: "#apps" },
   ctaSecondary: { label: "Shop My Gear", href: "#gear" },
   ctaTertiary: { label: "Connect With Me", href: "#contact" },
+  adminTitle: "SX",
+  footerText: "",
 };
 
 export const apps: App[] = [

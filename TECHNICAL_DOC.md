@@ -21,6 +21,11 @@ A comprehensive technical breakdown of the SteelX fitness creator storefront app
 13. [Project File Structure](#13-project-file-structure)
 14. [Third-Party Services Summary](#14-third-party-services-summary)
 15. [Libraries & Why Each Was Chosen](#15-libraries--why-each-was-chosen)
+16. [Theme System (Dark/Light)](#16-theme-system-darklight)
+17. [Drag & Drop Reordering](#17-drag--drop-reordering)
+18. [Price Auto-Fetch from URL](#18-price-auto-fetch-from-url)
+19. [Affiliate Disclosure Footer](#19-affiliate-disclosure-footer)
+20. [Admin Panel Branding](#20-admin-panel-branding)
 
 ---
 
@@ -582,6 +587,8 @@ steelxstack/
 | `qrcode` | 1.5.x | QR code generation | Generates QR as data URL for TOTP setup — user scans with authenticator app |
 | `framer-motion` | 12.x | Animations | Declarative, performant, handles layout animations and gestures |
 | `react-easy-crop` | 5.x | Image cropping | Lightweight crop/zoom/rotate UI, touch-friendly, returns crop area coordinates |
+| `@dnd-kit/core` | latest | Drag & drop framework | Accessible, touch-friendly, works with React state; no DOM mutations |
+| `@dnd-kit/sortable` | latest | Sortable lists | Built on @dnd-kit/core, handles vertical list reordering with `arrayMove` |
 
 ### Dev Dependencies
 
@@ -622,3 +629,116 @@ A: NextAuth is designed for multi-user, multi-provider auth (Google, GitHub, etc
 
 **Q: Can multiple people manage the admin?**
 A: Currently, no — it's designed for a single creator. The password is shared. Adding multi-user auth would require a user table and role system.
+
+---
+
+## 16. Theme System (Dark/Light)
+
+The public page has a **theme toggle button** (sun/moon icon) fixed in the top-right corner.
+
+### How It Works
+
+- Default is **dark theme** (the gym aesthetic)
+- Clicking the toggle adds/removes the CSS class `light` on `<body>`
+- `body.light` in `globals.css` overrides background colors, text colors, glass effect, gradients, etc.
+- Theme preference is saved in `localStorage` under key `sx-theme`
+- On page load, the saved preference is read and applied before first paint
+
+### Why CSS Class Toggle (not CSS Custom Properties)?
+
+We already have a fully built dark theme with Tailwind utility classes (`bg-dark-900`, `text-white`, `glass`, etc.). Switching everything to CSS variables would require rewriting most of the UI. A class toggle approach overrides just the specific colors that need to change — minimal effort, maximum result.
+
+### Technical Detail
+
+```css
+/* globals.css */
+body.light .glass {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.light .text-white { color: #1a1a2e; }
+body.light .bg-dark-900 { background-color: #f8f9fa; }
+/* ... etc */
+```
+
+---
+
+## 17. Drag & Drop Reordering
+
+Products in the Gear tab can be **drag-reordered** by grabbing the grip handle (6-dot icon) on each row.
+
+### Library: @dnd-kit
+
+**Why @dnd-kit (not react-beautiful-dnd)?**
+- `react-beautiful-dnd` is deprecated and incompatible with React 19
+- `@dnd-kit` is the modern standard: accessible, lightweight, touch-friendly
+- Works with React state directly — no DOM mutations
+
+### How It Works
+
+```
+1. Each product row is wrapped in <SortableProductItem> using useSortable() hook
+2. The grip handle gets {...listeners, ...attributes} for drag activation
+3. PointerSensor (mouse) and TouchSensor (mobile) are configured with activation constraints
+4. On drag end: arrayMove(products, oldIndex, newIndex) → update React state
+5. State is saved to Redis when admin clicks "Save All Changes"
+```
+
+### Activation Constraints
+
+- **Pointer**: `distance: 8` — prevents accidental drags on click
+- **Touch**: `delay: 200, tolerance: 5` — long-press to start drag on mobile
+
+---
+
+## 18. Price Auto-Fetch from URL
+
+When adding a product with a buy link URL, clicking "Auto-Fill" extracts price from the page.
+
+### Logic
+
+```
+1. Admin pastes URL in buy link field, clicks "Auto-Fill"
+2. Server scrapes the URL, extracts og:price:amount or price patterns (₹, $, Rs.)
+3. If price found AND product has no manually-set price → auto-fill price field
+4. If admin has already entered a price → keep the manual price (override takes priority)
+```
+
+### Why Manual Override?
+
+Scraped prices can be wrong (dynamic pricing, out-of-stock, regional differences). The admin's explicit input is always more trustworthy. The scraper provides a convenient starting point, not the final word.
+
+---
+
+## 19. Affiliate Disclosure Footer
+
+The footer can display an affiliate disclosure text (important for Amazon/Myntra affiliate program approval).
+
+### Admin Flow
+
+```
+1. Go to Profile tab → "Footer Text" section
+2. Enter disclosure text, e.g.:
+   "Some of the links on this page are affiliate links. I may earn a small commission
+    at no extra cost to you if you make a purchase through these links."
+3. Save → text appears at bottom of public page above copyright
+4. Leave empty → footer text is hidden completely
+```
+
+### Why Is This Important?
+
+Amazon, Myntra, Flipkart, and other affiliate programs **require** a visible disclosure on any page containing affiliate links. Having this in the footer significantly increases approval chances.
+
+---
+
+## 20. Admin Panel Branding
+
+The admin panel header (which shows "SX Admin Panel" by default) is customizable.
+
+### How It Works
+
+- **Profile tab → "Admin Panel Branding" section**
+- Set a custom title text (e.g., "STEELX" or your name)
+- Upload a logo image to replace the text badge entirely
+- If logo is set → shows image; otherwise → shows title text in green badge
+- Stored in `creator.adminTitle` and `creator.adminLogo` fields

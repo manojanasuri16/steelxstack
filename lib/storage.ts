@@ -72,6 +72,10 @@ function migrateData(raw: any): StorefrontData {
     data.currency = DEFAULT_DATA.currency;
   }
 
+  // Ensure creator has new fields
+  if (!data.creator.adminTitle) data.creator.adminTitle = "SX";
+  if (data.creator.footerText === undefined) data.creator.footerText = "";
+
   // Ensure workoutPlans exists
   if (!data.workoutPlans) {
     data.workoutPlans = DEFAULT_DATA.workoutPlans;
