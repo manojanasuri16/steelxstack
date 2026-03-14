@@ -102,10 +102,10 @@ interface StorefrontData {
 }
 
 // ─── Toast ───
-function Toast({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
-  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
+function Toast({ message, type, onClose }: { message: string; type: "success" | "error" | "warning"; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, type === "warning" ? 6000 : 3000); return () => clearTimeout(t); }, [onClose, type]);
   return (
-    <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-lg ${type === "success" ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"}`}>
+    <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl text-sm font-medium shadow-lg max-w-sm ${type === "success" ? "bg-green-500/90 text-white" : type === "warning" ? "bg-yellow-500/90 text-dark-900" : "bg-red-500/90 text-white"}`}>
       {message}
     </div>
   );
@@ -833,9 +833,9 @@ export default function AdminPage() {
   const [data, setData] = useState<StorefrontData | null>(null);
   const [activeTab, setActiveTab] = useState<string>("creator");
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
 
-  const showToast = useCallback((message: string, type: "success" | "error") => setToast({ message, type }), []);
+  const showToast = useCallback((message: string, type: "success" | "error" | "warning") => setToast({ message, type }), []);
 
   useEffect(() => {
     fetch("/api/auth/check").then((r) => r.json()).then((d) => { setAuthenticated(d.authenticated); setChecking(false); }).catch(() => setChecking(false));
@@ -851,7 +851,18 @@ export default function AdminPage() {
     setSaving(true);
     try {
       const res = await fetch("/api/data", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      showToast(res.ok ? "Changes saved!" : "Failed to save", res.ok ? "success" : "error");
+      if (res.ok) {
+        // Check for products with buy links but no price
+        const noPriceProducts = data.products.filter((p) => p.buyLinks.some((l) => l.url) && !p.price);
+        if (noPriceProducts.length > 0) {
+          const names = noPriceProducts.map((p) => p.name || "Untitled").join(", ");
+          showToast(`Saved! But no price for: ${names}. Try Auto-Fill or enter manually.`, "warning");
+        } else {
+          showToast("Changes saved!", "success");
+        }
+      } else {
+        showToast("Failed to save", "error");
+      }
     } catch { showToast("Network error", "error"); } finally { setSaving(false); }
   };
 
