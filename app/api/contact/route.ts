@@ -34,6 +34,8 @@ export async function POST(req: Request) {
     await saveMessage(msg);
 
     // Send email notification via Resend (if configured)
+    let emailSent = false;
+    let emailError = "";
     const resendKey = process.env.RESEND_API_KEY;
     const notifyEmail = process.env.NOTIFICATION_EMAIL;
     if (resendKey && notifyEmail) {
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
           business: "Business Inquiry",
           feedback: "Feedback",
         };
-        await fetch("https://api.resend.com/emails", {
+        const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -67,13 +69,20 @@ export async function POST(req: Request) {
             `,
           }),
         });
+        const emailData = await emailRes.json();
+        if (emailRes.ok) {
+          emailSent = true;
+        } else {
+          emailError = emailData?.message || emailData?.error || JSON.stringify(emailData);
+          console.error("Resend API error:", emailError);
+        }
       } catch (emailErr) {
+        emailError = String(emailErr);
         console.error("Email notification failed:", emailErr);
-        // Don't fail the request — message is already saved in Redis
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, emailSent, emailError: emailError || undefined });
   } catch (e) {
     console.error("POST /api/contact error:", e);
     return NextResponse.json({ error: "Failed to submit message" }, { status: 500 });
