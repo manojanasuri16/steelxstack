@@ -94,6 +94,41 @@ body.light .bg-neon-cyan\/15 {
   background-color: rgba(34, 211, 238, 0.08);
 }
 
+body.light .text-neon {
+  color: #15803d;
+}
+
+body.light .bg-neon\/20 {
+  background-color: rgba(21, 128, 61, 0.15);
+}
+
+body.light .border-neon\/50 {
+  border-color: rgba(21, 128, 61, 0.5);
+}
+
+body.light .text-neon-cyan {
+  color: #0e7490;
+}
+
+body.light .border-neon-cyan\/30 {
+  border-color: rgba(14, 116, 144, 0.3);
+}
+
+/* Overlay elements — light mode */
+body.light .bg-dark-900\/70 {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+body.light .bg-dark-900\/90 {
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+/* Ensure overlay text stays white in light mode */
+body.light .bg-dark-900\/70 .text-white,
+body.light .bg-dark-900\/70.text-white {
+  color: #ffffff;
+}
+
 /* Glassmorphism utility */
 .glass {
   background: var(--color-glass);

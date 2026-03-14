@@ -70,7 +70,8 @@ export default function ProductCard({
       {hasImage && hasWornImage && (
         <button
           onClick={() => setShowWorn(!showWorn)}
-          className="absolute top-3 right-3 z-10 bg-dark-900/70 backdrop-blur-sm text-white text-[10px] font-medium px-2.5 py-1 rounded-full border border-glass-border hover:bg-dark-900/90 transition-colors"
+          className="absolute top-3 right-3 z-10 bg-dark-900/70 backdrop-blur-sm text-[10px] font-medium px-2.5 py-1 rounded-full border border-glass-border hover:bg-dark-900/90 transition-colors shadow-sm"
+          style={{ color: "#ffffff" }}
         >
           {showWorn ? "Product" : "On Me"}
         </button>

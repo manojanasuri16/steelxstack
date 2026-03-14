@@ -404,7 +404,7 @@ function SortableProductItem({ product, products, categories, currency, editing,
               <Field label="Product Name"><Input value={product.name} onChange={(v) => updateProduct(product.id, { name: v })} /></Field>
               <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} onCurrencyChange={(v) => updateProduct(product.id, { currency: v })} />
             </div>
-            <p className="text-gray-500 text-[11px] -mt-2 mb-3">Price auto-fetched from URL if left empty. Set manually to override.</p>
+            <p className="text-gray-500 text-[11px] -mt-2 mb-3">💡 Price is optional — if left empty, it will be auto-fetched from the product URL when you click Auto-Fill. Enter a price manually to override.</p>
             <div className="grid sm:grid-cols-2 gap-x-6">
               <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
               <ImageUpload value={product.wornImage || ""} onChange={(v) => updateProduct(product.id, { wornImage: v || undefined })} label="Worn / On Me Image" />
@@ -868,7 +868,7 @@ export default function AdminPage() {
     <div className="min-h-screen bg-dark-900 pb-20">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      <header className="sticky top-0 z-40 glass border-b border-glass-border">
+      <header className="sticky top-0 z-40 bg-dark-900 border-b border-glass-border">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {adminLogo && (adminLogo.startsWith("http") || adminLogo.startsWith("/uploads/")) ? (
@@ -887,7 +887,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="sticky top-[57px] z-30 bg-dark-900/80 backdrop-blur-sm border-b border-glass-border">
+      <div className="sticky top-[57px] z-30 bg-dark-900 border-b border-glass-border">
         <div className="max-w-4xl mx-auto px-4 flex gap-1 overflow-x-auto no-scrollbar">
           {TABS.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-4 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${activeTab === tab.id ? "text-neon" : "text-gray-400 hover:text-white"}`}>

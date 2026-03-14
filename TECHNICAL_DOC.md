@@ -699,7 +699,11 @@ When adding a product with a buy link URL, clicking "Auto-Fill" extracts price f
 
 ```
 1. Admin pastes URL in buy link field, clicks "Auto-Fill"
-2. Server scrapes the URL, extracts og:price:amount or price patterns (₹, $, Rs.)
+2. Server scrapes the URL, tries multiple extraction methods in order:
+   a. og:price:amount / product:price:amount meta tags
+   b. JSON-LD structured data (schema.org Product/Offer)
+   c. itemprop="price" HTML attributes
+   d. Regex patterns for ₹, $, Rs., MRP in page text
 3. If price found AND product has no manually-set price → auto-fill price field
 4. If admin has already entered a price → keep the manual price (override takes priority)
 ```
