@@ -817,6 +817,139 @@ function SecurityTab({ showToast }: { showToast: (msg: string, type: "success" |
   );
 }
 
+// ─── Messages Tab ───
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  type: string;
+  message: string;
+  createdAt: string;
+  read?: boolean;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  general: "General",
+  collaboration: "Collaboration",
+  business: "Business",
+  feedback: "Feedback",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  general: "bg-blue-500/20 text-blue-400",
+  collaboration: "bg-purple-500/20 text-purple-400",
+  business: "bg-orange-500/20 text-orange-400",
+  feedback: "bg-green-500/20 text-green-400",
+};
+
+function MessagesTab({ showToast }: { showToast: (msg: string, type: "success" | "error" | "warning") => void }) {
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const res = await fetch("/api/contact");
+      if (res.ok) setMessages(await res.json());
+    } catch {
+      showToast("Failed to load messages", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => { fetchMessages(); }, [fetchMessages]);
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch("/api/contact", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (res.ok) {
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+        showToast("Message deleted", "success");
+      }
+    } catch {
+      showToast("Failed to delete", "error");
+    }
+  };
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      const res = await fetch("/api/contact", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (res.ok) setMessages((prev) => prev.map((m) => m.id === id ? { ...m, read: true } : m));
+    } catch {}
+  };
+
+  const unreadCount = messages.filter((m) => !m.read).length;
+
+  if (loading) return <div className="text-gray-500 text-center py-8">Loading messages...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold text-white">Inbox</h3>
+          {unreadCount > 0 && <span className="bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadCount} new</span>}
+        </div>
+        <p className="text-gray-500 text-xs">{messages.length} message{messages.length !== 1 ? "s" : ""}</p>
+      </div>
+
+      {messages.length === 0 ? (
+        <div className="glass rounded-2xl p-8 text-center">
+          <div className="text-4xl mb-3">📭</div>
+          <p className="text-gray-400 text-sm">No messages yet. When someone submits the contact form, their messages will appear here.</p>
+        </div>
+      ) : (
+        messages.map((msg) => (
+          <div key={msg.id} className={`glass rounded-2xl overflow-hidden ${!msg.read ? "border-l-2 border-l-neon" : ""}`}>
+            <div
+              className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+              onClick={() => {
+                setExpanded(expanded === msg.id ? null : msg.id);
+                if (!msg.read) handleMarkRead(msg.id);
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-dark-700 flex items-center justify-center shrink-0">
+                  <span className="text-neon font-bold text-sm">{msg.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`font-medium text-sm truncate ${!msg.read ? "text-white" : "text-gray-300"}`}>{msg.name}</p>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${TYPE_COLORS[msg.type] || TYPE_COLORS.general}`}>{TYPE_LABELS[msg.type] || msg.type}</span>
+                  </div>
+                  <p className="text-gray-500 text-xs truncate">{msg.message}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-2">
+                <span className="text-gray-600 text-[11px] hidden sm:block">{new Date(msg.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                <span className="text-gray-500 text-sm">{expanded === msg.id ? "\u25B2" : "\u25BC"}</span>
+              </div>
+            </div>
+
+            {expanded === msg.id && (
+              <div className="p-4 pt-0 border-t border-glass-border">
+                <div className="pt-4 space-y-3">
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-400">
+                    <span>From: <a href={`mailto:${msg.email}`} className="text-neon-cyan hover:underline">{msg.email}</a></span>
+                    <span>Date: {new Date(msg.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+                  </div>
+                  <div className="bg-dark-700 rounded-xl p-4">
+                    <p className="text-white text-sm whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                  </div>
+                  <div className="flex items-center gap-3 pt-1">
+                    <a href={`mailto:${msg.email}?subject=Re: ${TYPE_LABELS[msg.type] || "Your message"} — SteelX`} className="text-neon-cyan text-xs hover:underline">Reply via email</a>
+                    <button onClick={() => handleDelete(msg.id)} className="text-red-400 text-xs hover:text-red-300 ml-auto">Delete</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───
 const TABS = [
   { id: "creator", label: "Profile" },
@@ -824,6 +957,7 @@ const TABS = [
   { id: "gear", label: "Gear" },
   { id: "plans", label: "Plans" },
   { id: "contacts", label: "Contact" },
+  { id: "messages", label: "Messages" },
   { id: "security", label: "Security" },
 ] as const;
 
@@ -923,6 +1057,7 @@ export default function AdminPage() {
         )}
         {activeTab === "plans" && <PlansTab plans={data.workoutPlans || []} onChange={(workoutPlans) => setData({ ...data, workoutPlans })} />}
         {activeTab === "contacts" && <ContactsTab contacts={data.contacts} onChange={(contacts) => setData({ ...data, contacts })} />}
+        {activeTab === "messages" && <MessagesTab showToast={showToast} />}
         {activeTab === "security" && <SecurityTab showToast={showToast} />}
       </div>
 

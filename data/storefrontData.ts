@@ -68,6 +68,16 @@ export interface ContactInfo {
   socials: SocialLink[];
 }
 
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  type: "general" | "collaboration" | "business" | "feedback";
+  message: string;
+  createdAt: string;
+  read?: boolean;
+}
+
 export const creator: Creator = {
   name: "SteelX",
   tagline: "Hybrid Athlete | Lifting + Running",

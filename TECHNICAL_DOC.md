@@ -26,6 +26,7 @@ A comprehensive technical breakdown of the SteelX fitness creator storefront app
 18. [Price Auto-Fetch from URL](#18-price-auto-fetch-from-url)
 19. [Affiliate Disclosure Footer](#19-affiliate-disclosure-footer)
 20. [Admin Panel Branding](#20-admin-panel-branding)
+21. [Contact Form & Messages](#21-contact-form--messages)
 
 ---
 
@@ -746,3 +747,42 @@ The admin panel header (which shows "SX Admin Panel" by default) is customizable
 - Upload a logo image to replace the text badge entirely
 - If logo is set → shows image; otherwise → shows title text in green badge
 - Stored in `creator.adminTitle` and `creator.adminLogo` fields
+
+---
+
+## 21. Contact Form & Messages
+
+Visitors can send messages directly from the public page. Messages are stored in Redis and optionally trigger email notifications.
+
+### Public Page
+
+The "Connect With Me" section now has a contact form alongside the existing phone/email/social links:
+- Fields: Name, Email, Inquiry Type (dropdown), Message
+- Inquiry types: General, Collaboration/Sponsorship, Business, Feedback
+- On submit → POST `/api/contact` → saved to Redis under `contact-messages` key
+- Shows success confirmation with option to send another message
+
+### Email Notifications (Optional)
+
+If `RESEND_API_KEY` and `NOTIFICATION_EMAIL` env vars are set:
+- Every form submission sends a formatted HTML email to the notification address
+- Email includes: name, email (clickable), inquiry type, full message
+- Uses Resend API (free tier: 100 emails/day)
+- If email fails, the message is still saved in Redis — no data loss
+
+### Admin Panel — Messages Tab
+
+New "Messages" tab between Contact and Security:
+- Shows inbox with unread count badge
+- Each message shows: sender avatar (first letter), name, type badge, preview
+- Click to expand: full message, email link, date, "Reply via email" button
+- Mark as read on open (left green border = unread)
+- Delete individual messages
+- All operations are auth-gated (JWT session required)
+
+### Storage
+
+Messages are stored in a separate Redis key (`contact-messages`) — independent from `storefront-data`. This means:
+- Messages don't bloat the main storefront data
+- Deleting messages doesn't require saving all storefront data
+- Each message has: id, name, email, type, message, createdAt, read flag

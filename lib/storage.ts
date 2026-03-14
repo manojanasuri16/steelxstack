@@ -6,7 +6,7 @@ import {
   contacts as defaultContacts,
   workoutPlans as defaultWorkoutPlans,
 } from "@/data/storefrontData";
-import type { Creator, App, Product, ContactInfo, WorkoutPlan } from "@/data/storefrontData";
+import type { Creator, App, Product, ContactInfo, WorkoutPlan, ContactMessage } from "@/data/storefrontData";
 
 export interface StorefrontData {
   creator: Creator;
@@ -125,4 +125,70 @@ export async function saveData(data: StorefrontData): Promise<void> {
   const path = await import("path");
   const filePath = path.join(process.cwd(), "data", "local-data.json");
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// ─── Contact Messages ───
+
+export async function getMessages(): Promise<ContactMessage[]> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const msgs = await redis.get<ContactMessage[]>("contact-messages");
+      return msgs || [];
+    } catch {
+      return [];
+    }
+  }
+  // Local fallback
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const filePath = path.join(process.cwd(), "data", "messages.json");
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function saveMessage(msg: ContactMessage): Promise<void> {
+  const messages = await getMessages();
+  messages.unshift(msg); // newest first
+  const redis = getRedis();
+  if (redis) {
+    await redis.set("contact-messages", messages);
+    return;
+  }
+  const fs = await import("fs");
+  const path = await import("path");
+  const filePath = path.join(process.cwd(), "data", "messages.json");
+  fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
+}
+
+export async function deleteMessage(id: string): Promise<void> {
+  const messages = await getMessages();
+  const filtered = messages.filter((m) => m.id !== id);
+  const redis = getRedis();
+  if (redis) {
+    await redis.set("contact-messages", filtered);
+    return;
+  }
+  const fs = await import("fs");
+  const path = await import("path");
+  const filePath = path.join(process.cwd(), "data", "messages.json");
+  fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2));
+}
+
+export async function markMessageRead(id: string): Promise<void> {
+  const messages = await getMessages();
+  const updated = messages.map((m) => m.id === id ? { ...m, read: true } : m);
+  const redis = getRedis();
+  if (redis) {
+    await redis.set("contact-messages", updated);
+    return;
+  }
+  const fs = await import("fs");
+  const path = await import("path");
+  const filePath = path.join(process.cwd(), "data", "messages.json");
+  fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
 }

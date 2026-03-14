@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SectionWrapper from "@/components/SectionWrapper";
 import AppCard from "@/components/AppCard";
@@ -54,6 +54,103 @@ function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
         </svg>
       )}
     </button>
+  );
+}
+
+// ─── Contact Form ───
+const INQUIRY_TYPES = [
+  { value: "general", label: "General Inquiry" },
+  { value: "collaboration", label: "Collaboration / Sponsorship" },
+  { value: "business", label: "Business Inquiry" },
+  { value: "feedback", label: "Feedback" },
+];
+
+function ContactForm() {
+  const [form, setForm] = useState({ name: "", email: "", type: "general", message: "" });
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        setStatus("sent");
+        setForm({ name: "", email: "", type: "general", message: "" });
+      } else {
+        const data = await res.json();
+        console.error(data.error);
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  if (status === "sent") {
+    return (
+      <div className="glass rounded-2xl p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-neon/20 flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-neon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h4 className="text-white font-semibold mb-1">Message Sent!</h4>
+        <p className="text-gray-400 text-sm">Thanks for reaching out. I&apos;ll get back to you soon.</p>
+        <button onClick={() => setStatus("idle")} className="mt-4 text-neon text-sm hover:underline">Send another message</button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 space-y-3">
+      <h4 className="text-white font-semibold text-sm mb-1">Send Me a Message</h4>
+      <input
+        type="text"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        placeholder="Your Name"
+        required
+        className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 transition-colors"
+      />
+      <input
+        type="email"
+        value={form.email}
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+        placeholder="Your Email"
+        required
+        className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 transition-colors"
+      />
+      <select
+        value={form.type}
+        onChange={(e) => setForm({ ...form, type: e.target.value })}
+        className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-neon/50 transition-colors"
+      >
+        {INQUIRY_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>{t.label}</option>
+        ))}
+      </select>
+      <textarea
+        value={form.message}
+        onChange={(e) => setForm({ ...form, message: e.target.value })}
+        placeholder="Your message..."
+        required
+        rows={4}
+        className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 transition-colors resize-none"
+      />
+      {status === "error" && <p className="text-red-400 text-xs">Something went wrong. Please try again.</p>}
+      <button
+        type="submit"
+        disabled={status === "sending"}
+        className="w-full py-2.5 rounded-xl text-sm font-bold bg-neon text-dark-900 hover:brightness-110 transition-all disabled:opacity-50"
+      >
+        {status === "sending" ? "Sending..." : "Send Message"}
+      </button>
+    </form>
   );
 }
 
@@ -362,22 +459,33 @@ export default function StorefrontPage({
       )}
 
       {/* CONTACT ME */}
-      {hasContacts && (
-        <SectionWrapper
-          id="contact"
-          title="Connect With Me"
-          subtitle="Got questions? Want to collaborate? Reach out!"
-        >
+      <SectionWrapper
+        id="contact"
+        title="Connect With Me"
+        subtitle="Got questions? Want to collaborate? Reach out!"
+      >
+        <div className="max-w-2xl mx-auto grid sm:grid-cols-2 gap-4">
+          {/* Left: Contact Form */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="max-w-md mx-auto"
+          >
+            <ContactForm />
+          </motion.div>
+
+          {/* Right: Contact Info & Socials */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="space-y-4"
           >
             {/* Phone & Email */}
             {(contacts.phone || contacts.email) && (
-              <div className="glass rounded-2xl p-5 mb-4 space-y-3">
+              <div className="glass rounded-2xl p-5 space-y-3">
                 {contacts.phone && (
                   <a
                     href={`tel:${contacts.phone}`}
@@ -433,8 +541,8 @@ export default function StorefrontPage({
               </div>
             )}
           </motion.div>
-        </SectionWrapper>
-      )}
+        </div>
+      </SectionWrapper>
 
       {/* FOOTER */}
       <footer className="py-8 sm:py-10 px-4 text-center border-t border-glass-border">
