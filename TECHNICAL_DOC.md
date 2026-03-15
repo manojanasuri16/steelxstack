@@ -27,6 +27,7 @@ A comprehensive technical breakdown of the SteelX fitness creator storefront app
 19. [Affiliate Disclosure Footer](#19-affiliate-disclosure-footer)
 20. [Admin Panel Branding](#20-admin-panel-branding)
 21. [Contact Form & Messages](#21-contact-form--messages)
+22. [Multi-Image Upload & Image Lightbox](#22-multi-image-upload--image-lightbox)
 
 ---
 
@@ -786,3 +787,50 @@ Messages are stored in a separate Redis key (`contact-messages`) — independent
 - Messages don't bloat the main storefront data
 - Deleting messages doesn't require saving all storefront data
 - Each message has: id, name, email, type, message, createdAt, read flag
+
+---
+
+## 22. Multi-Image Upload & Image Lightbox
+
+### What Changed
+
+Products now support **multiple images** for both product photos and "On Me" worn photos. Previously each product had a single `image` and optional `wornImage`. Now they have `images: string[]` and `wornImages: string[]` arrays (up to 5 each).
+
+### Admin Panel — MultiImageUpload Component
+
+Located at `components/admin/MultiImageUpload.tsx`. Supports:
+- **Multiple images** with visual grid thumbnails
+- **Upload, camera capture, or paste URL** for each image
+- **Image editor** (crop/rotate/zoom) before upload via ImageEditorModal
+- **Reorder** images by hovering and clicking left/right arrows
+- **Remove** individual images
+- First image marked as "Main" — used as the primary display image
+- Auto-optimizes to WebP, max 1200px width
+
+### Public Page — ImageLightbox Component
+
+Located at `components/ImageLightbox.tsx`. Full-screen image preview overlay:
+- **Framer Motion** animated transitions between images
+- **Swipe gestures** on mobile (touch start/move/end detection)
+- **Keyboard navigation** — arrow keys + Escape to close
+- **Dot indicators** at bottom for multi-image navigation
+- **Prev/Next buttons** on sides
+- **Counter** (e.g., "2 / 5") at top left
+- Click outside image or press X to close
+- Body scroll locked while open
+
+### ProductCard Changes
+
+- Clicking the product image opens the lightbox (not navigating away)
+- Shows image count badge (camera icon + number) when multiple images exist
+- "Tap to preview" hint on hover
+- "Product" / "On Me" toggle switches between the two image sets
+- Lightbox shows all images of the active set (product or worn)
+
+### Data Migration
+
+`lib/storage.ts` migration automatically converts old single-image products:
+- `image: "url"` → `images: ["url"]`
+- `wornImage: "url"` → `wornImages: ["url"]`
+
+The old `image` and `wornImage` fields are kept in sync (set to first item in array) for backward compatibility.
