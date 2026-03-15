@@ -54,7 +54,9 @@ function migrateData(raw: any): StorefrontData {
       if (typeof m.price === "string") {
         m.price = parseFloat((m.price as string).replace(/[^\d.]/g, "")) || undefined;
       }
-      // Old products without per-product currency → undefined (uses global)
+      // Migrate single image to images array
+      if (!m.images && m.image) m.images = [m.image as string];
+      if (!m.wornImages && m.wornImage) m.wornImages = [m.wornImage as string];
       return m;
     });
   }

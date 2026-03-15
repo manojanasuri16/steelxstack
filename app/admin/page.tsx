@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import ImageUpload from "@/components/ImageUpload";
+import MultiImageUpload from "@/components/admin/MultiImageUpload";
 import PriceInput from "@/components/admin/PriceInput";
 import {
   DndContext,
@@ -56,7 +57,9 @@ interface Product {
   name: string;
   category: string;
   image: string;
+  images?: string[];
   wornImage?: string;
+  wornImages?: string[];
   buyLinks: BuyLink[];
   note: string;
   price?: number;
@@ -405,10 +408,18 @@ function SortableProductItem({ product, products, categories, currency, editing,
               <PriceInput value={product.price} currency={product.currency || currency} onChange={(v) => updateProduct(product.id, { price: v })} onCurrencyChange={(v) => updateProduct(product.id, { currency: v })} />
             </div>
             <p className="text-gray-500 text-[11px] -mt-2 mb-3">💡 Price is optional — if left empty, it will be auto-fetched from the product URL when you click Auto-Fill. Enter a price manually to override.</p>
-            <div className="grid sm:grid-cols-2 gap-x-6">
-              <ImageUpload value={product.image} onChange={(v) => updateProduct(product.id, { image: v })} label="Product Image" />
-              <ImageUpload value={product.wornImage || ""} onChange={(v) => updateProduct(product.id, { wornImage: v || undefined })} label="Worn / On Me Image" />
-            </div>
+            <MultiImageUpload
+              images={product.images?.length ? product.images : (product.image ? [product.image] : [])}
+              onChange={(imgs) => updateProduct(product.id, { images: imgs, image: imgs[0] || "" })}
+              label="Product Images"
+              max={5}
+            />
+            <MultiImageUpload
+              images={product.wornImages?.length ? product.wornImages : (product.wornImage ? [product.wornImage] : [])}
+              onChange={(imgs) => updateProduct(product.id, { wornImages: imgs, wornImage: imgs[0] || undefined })}
+              label="On Me Images"
+              max={5}
+            />
             <div className="grid sm:grid-cols-2 gap-x-6">
               <Field label="Category">
                 <select value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">

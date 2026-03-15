@@ -33,7 +33,9 @@ export interface Product {
   name: string;
   category: string;
   image: string;
+  images?: string[];
   wornImage?: string;
+  wornImages?: string[];
   buyLinks: BuyLink[];
   note: string;
   price?: number;
