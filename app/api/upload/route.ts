@@ -24,18 +24,27 @@ export async function POST(req: Request) {
     "image/webp",
     "image/svg+xml",
     "image/gif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "application/pdf",
+    "text/plain",
+    "text/markdown",
   ];
   if (!allowedTypes.includes(file.type)) {
     return NextResponse.json(
-      { error: "Invalid file type. Use JPEG, PNG, WebP, SVG, or GIF." },
+      { error: "Invalid file type. Supported: images, videos, PDF, text, markdown." },
       { status: 400 }
     );
   }
 
-  // Max 5MB
-  if (file.size > 5 * 1024 * 1024) {
+  // Max 50MB for video, 10MB for PDF, 5MB for images/text
+  const isVideo = file.type.startsWith("video/");
+  const isPdf = file.type === "application/pdf";
+  const maxSize = isVideo ? 50 * 1024 * 1024 : isPdf ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+  if (file.size > maxSize) {
     return NextResponse.json(
-      { error: "File too large. Max 5MB." },
+      { error: `File too large. Max ${isVideo ? "50MB" : isPdf ? "10MB" : "5MB"}.` },
       { status: 400 }
     );
   }

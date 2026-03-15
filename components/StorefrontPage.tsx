@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useInView } from "framer-motion";
 import SectionWrapper from "@/components/SectionWrapper";
 import AppCard from "@/components/AppCard";
 import ProductCard from "@/components/ProductCard";
+import MediaPreview, { detectMediaType, getYouTubeId, InlineFileViewer } from "@/components/MediaPreview";
 import type {
   Creator, App, Product, ContactInfo, WorkoutPlan,
   Transformation, TransformationPlan, DiscountCode, FAQItem, Achievement, ScheduleSlot,
@@ -99,10 +100,41 @@ function AnimatedStat({ ach, delay }: { ach: Achievement; delay: number }) {
   );
 }
 
+// ─── Video Renderer (supports YouTube + direct video) ───
+function VideoEmbed({ url, className = "", controls = true }: { url: string; className?: string; controls?: boolean }) {
+  const type = detectMediaType(url);
+  const ytId = type === "youtube" ? getYouTubeId(url) : null;
+  if (ytId) {
+    return (
+      <iframe
+        src={`https://www.youtube.com/embed/${ytId}?rel=0`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className={`w-full ${className}`}
+      />
+    );
+  }
+  return <video src={url} controls={controls} playsInline className={`w-full ${className}`} />;
+}
+
+// ─── Clickable Media Thumbnail ───
+function ClickableMedia({ url, alt, className = "", children }: { url: string; alt?: string; className?: string; children?: React.ReactNode }) {
+  const [preview, setPreview] = useState(false);
+  return (
+    <>
+      <div onClick={() => setPreview(true)} className={`cursor-pointer ${className}`}>
+        {children}
+      </div>
+      <MediaPreview url={url} open={preview} onClose={() => setPreview(false)} title={alt} />
+    </>
+  );
+}
+
 // ─── Transformation Slider ───
 function TransformationCard({ tf, currency }: { tf: Transformation; currency: string }) {
   const [sliderPos, setSliderPos] = useState(50);
   const [mode, setMode] = useState<"image" | "video">("image");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -111,7 +143,7 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
   const hasAfterImg = isValid(tf.afterImage);
   const hasBeforeVid = isValid(tf.beforeVideo);
   const hasAfterVid = isValid(tf.afterVideo);
-  const hasVideo = hasBeforeVid && hasAfterVid;
+  const hasVideo = hasBeforeVid || hasAfterVid;
 
   if (!hasBeforeImg && !hasBeforeVid) return null;
   if (!hasAfterImg && !hasAfterVid) return null;
@@ -136,14 +168,24 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
 
       {mode === "video" && hasVideo ? (
         <div className="grid grid-cols-2 gap-1 p-1">
-          <div className="relative">
-            <video src={tf.beforeVideo} controls className="w-full aspect-[4/3] object-cover rounded-lg" playsInline />
-            <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</span>
-          </div>
-          <div className="relative">
-            <video src={tf.afterVideo} controls className="w-full aspect-[4/3] object-cover rounded-lg" playsInline />
-            <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</span>
-          </div>
+          {hasBeforeVid && (
+            <div className="relative cursor-pointer" onClick={() => setPreviewUrl(tf.beforeVideo!)}>
+              <VideoEmbed url={tf.beforeVideo!} className="aspect-[4/3] object-cover rounded-lg" controls={false} />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg hover:bg-black/40 transition-colors">
+                <svg className="w-10 h-10 text-white/80" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              </div>
+              <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</span>
+            </div>
+          )}
+          {hasAfterVid && (
+            <div className="relative cursor-pointer" onClick={() => setPreviewUrl(tf.afterVideo!)}>
+              <VideoEmbed url={tf.afterVideo!} className="aspect-[4/3] object-cover rounded-lg" controls={false} />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg hover:bg-black/40 transition-colors">
+                <svg className="w-10 h-10 text-white/80" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              </div>
+              <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</span>
+            </div>
+          )}
         </div>
       ) : hasBeforeImg && hasAfterImg ? (
         <div ref={containerRef} className="relative aspect-[4/3] select-none cursor-col-resize overflow-hidden"
@@ -168,6 +210,9 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
           </div>
           <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</div>
           <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</div>
+          {/* Tap before/after to preview full image */}
+          <button onClick={(e) => { e.stopPropagation(); setPreviewUrl(tf.beforeImage); }} className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-1 rounded-full hover:bg-black/70">View Before</button>
+          <button onClick={(e) => { e.stopPropagation(); setPreviewUrl(tf.afterImage); }} className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-1 rounded-full hover:bg-black/70">View After</button>
         </div>
       ) : null}
 
@@ -178,33 +223,130 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
 
         {/* Transformation Plans */}
         {tf.plans && tf.plans.length > 0 && (
-          <div className="mt-3 space-y-2">
-            <p className="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Plans</p>
-            {tf.plans.map((plan) => {
-              const isFree = !plan.price || plan.price <= 0;
-              const planCurrency = plan.currency || currency;
-              return (
-                <div key={plan.id} className="flex items-center justify-between bg-dark-700/50 rounded-lg p-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${plan.type === "diet" ? "bg-green-500/20 text-green-400" : plan.type === "workout" ? "bg-purple-500/20 text-purple-400" : "bg-orange-500/20 text-orange-400"}`}>{plan.type}</span>
-                    <span className="text-white text-xs font-medium">{plan.title}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!isFree && <span className="text-neon text-xs font-bold">{planCurrency}{plan.price!.toLocaleString()}</span>}
-                    {isFree && isValid(plan.fileUrl) ? (
-                      <a href={plan.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-neon text-dark-900 hover:brightness-110">Free Download</a>
-                    ) : !isFree && plan.paymentUrl ? (
-                      <a href={plan.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-neon text-dark-900 hover:brightness-110">Get Plan</a>
-                    ) : isValid(plan.previewUrl) ? (
-                      <a href={plan.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-dark-600 text-gray-300 hover:bg-dark-500">Preview</a>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <TransformationPlans plans={tf.plans} currency={currency} />
         )}
       </div>
+
+      {/* Media Preview Overlay */}
+      <MediaPreview url={previewUrl || ""} open={!!previewUrl} onClose={() => setPreviewUrl(null)} title={tf.title} />
+    </motion.div>
+  );
+}
+
+// ─── Transformation Plans with inline file preview ───
+function TransformationPlans({ plans, currency }: { plans: TransformationPlan[]; currency: string }) {
+  const [expandedPreview, setExpandedPreview] = useState<string | null>(null);
+  const isValid = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
+
+  return (
+    <div className="mt-3 space-y-2">
+      <p className="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Plans</p>
+      {plans.map((plan) => {
+        const isFree = !plan.price || plan.price <= 0;
+        const planCurrency = plan.currency || currency;
+        const hasPreview = isValid(plan.previewUrl);
+        return (
+          <div key={plan.id} className="bg-dark-700/50 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between p-2.5">
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${plan.type === "diet" ? "bg-green-500/20 text-green-400" : plan.type === "workout" ? "bg-purple-500/20 text-purple-400" : "bg-orange-500/20 text-orange-400"}`}>{plan.type}</span>
+                <span className="text-white text-xs font-medium">{plan.title}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isFree && <span className="text-neon text-xs font-bold">{planCurrency}{plan.price!.toLocaleString()}</span>}
+                {hasPreview && (
+                  <button onClick={() => setExpandedPreview(expandedPreview === plan.id ? null : plan.id)} className="text-[10px] font-bold px-3 py-1 rounded-full bg-dark-600 text-gray-300 hover:bg-dark-500 transition-colors">
+                    {expandedPreview === plan.id ? "Hide" : "Preview"}
+                  </button>
+                )}
+                {isFree && isValid(plan.fileUrl) ? (
+                  <a href={plan.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-neon text-dark-900 hover:brightness-110">Free Download</a>
+                ) : !isFree && plan.paymentUrl ? (
+                  <a href={plan.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-neon text-dark-900 hover:brightness-110">Get Plan</a>
+                ) : null}
+              </div>
+            </div>
+            {/* Inline preview */}
+            <AnimatePresence>
+              {expandedPreview === plan.id && hasPreview && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden px-2.5 pb-2.5">
+                  <InlineFileViewer url={plan.previewUrl!} className="w-full" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Plan Card with inline file preview ───
+function PlanCard({ plan, index }: { plan: WorkoutPlan; index: number }) {
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isPaid = plan.price != null && plan.price > 0;
+  const isValidUrl = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
+  const hasPreview = isValidUrl(plan.previewFileUrl);
+  const hasPlanFile = isValidUrl(plan.planFileUrl);
+  const mainHref = isPaid ? plan.paymentUrl || "#" : hasPlanFile ? plan.planFileUrl! : plan.planUrl;
+  const hasImage = plan.image && (plan.image.startsWith("http") || plan.image.startsWith("/uploads/"));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.35, delay: index * 0.08 }}
+      className="glass rounded-2xl overflow-hidden flex flex-col relative group">
+      {plan.featured && <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</div>}
+      {isPaid && <div className="absolute top-3 right-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{plan.currency || "₹"}{plan.price!.toLocaleString()}</div>}
+      {!isPaid && <div className="absolute top-3 right-3 z-10 bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">Free</div>}
+      {hasImage ? (
+        <div className="aspect-[16/9] bg-dark-700 overflow-hidden cursor-pointer" onClick={() => setPreviewUrl(plan.image)}>
+          <img src={plan.image} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+        </div>
+      ) : (
+        <div className="aspect-[16/9] bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center">
+          <span className="text-3xl font-bold text-dark-600">{plan.type === "gym" ? "\u{1F3CB}\uFE0F" : plan.type === "running" ? "\u{1F3C3}" : plan.type === "hybrid" ? "\u26A1" : "\u{1F4CB}"}</span>
+        </div>
+      )}
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="flex items-center gap-2 mb-2">
+          {plan.appIcon && (plan.appIcon.startsWith("http") || plan.appIcon.startsWith("/uploads/")) ? <img src={plan.appIcon} alt="" className="w-5 h-5 rounded-sm" /> : plan.appName ? <img src={`https://www.google.com/s2/favicons?domain=${plan.planUrl ? (() => { try { return new URL(plan.planUrl).hostname; } catch { return ""; } })() : ""}&sz=32`} alt="" className="w-5 h-5 rounded-sm" /> : null}
+          <span className="text-xs text-gray-400 font-medium">{plan.appName}</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${plan.type === "gym" ? "bg-purple-500/20 text-purple-400" : plan.type === "running" ? "bg-green-500/20 text-green-400" : plan.type === "hybrid" ? "bg-orange-500/20 text-orange-400" : "bg-blue-500/20 text-blue-400"}`}>{plan.type}</span>
+        </div>
+        <h3 className="text-white font-semibold text-sm mb-1">{plan.title}</h3>
+        {plan.description && <p className="text-gray-500 text-xs leading-relaxed mb-3 flex-1 line-clamp-2">{plan.description}</p>}
+        <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-3">
+          {plan.duration && <span>{plan.duration}</span>}
+          {plan.duration && plan.level && <span className="text-dark-600">&middot;</span>}
+          {plan.level && <span>{plan.level}</span>}
+        </div>
+        <div className="flex items-center gap-2 mt-auto">
+          {hasPreview && (
+            <button onClick={() => setShowPreview(!showPreview)} className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-dark-700 text-gray-300 hover:bg-dark-600 transition-colors">
+              {showPreview ? "Hide Preview" : "Preview"}
+            </button>
+          )}
+          <a href={mainHref} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-neon text-dark-900 hover:brightness-110 transition-all">
+            {isPaid ? "Buy Plan" : "Get Plan"}
+          </a>
+        </div>
+      </div>
+
+      {/* Inline file preview */}
+      <AnimatePresence>
+        {showPreview && hasPreview && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-glass-border">
+            <div className="p-4">
+              <InlineFileViewer url={plan.previewFileUrl!} className="w-full" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Image preview overlay */}
+      <MediaPreview url={previewUrl || ""} open={!!previewUrl} onClose={() => setPreviewUrl(null)} title={plan.title} />
     </motion.div>
   );
 }
@@ -545,7 +687,9 @@ export default function StorefrontPage({
 
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="relative z-10 text-center max-w-2xl w-full">
           {creator.profileImage && creator.profileImage !== "/profile.jpg" && (creator.profileImage.startsWith("http") || creator.profileImage.startsWith("/uploads/")) ? (
-            <img src={creator.profileImage} alt={creator.name} className="mx-auto mb-5 sm:mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-neon/50 neon-glow" />
+            <ClickableMedia url={creator.profileImage} alt={creator.name} className="mx-auto mb-5 sm:mb-6">
+              <img src={creator.profileImage} alt={creator.name} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-neon/50 neon-glow mx-auto" />
+            </ClickableMedia>
           ) : (
             <div className="mx-auto mb-5 sm:mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-dark-700 border-2 border-neon/50 flex items-center justify-center neon-glow">
               <span className="text-3xl sm:text-4xl font-bold text-neon">{creator.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>
@@ -585,54 +729,7 @@ export default function StorefrontPage({
       {showPlans && (
         <SectionWrapper id="plans" title="My Workout Plans" subtitle="Follow the exact plans I use. Whether you lift, run, or do both.">
           <div className="grid sm:grid-cols-2 gap-4">
-            {workoutPlans.map((plan, i) => {
-              const isPaid = plan.price != null && plan.price > 0;
-              const isValidUrl = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
-              const hasPreview = isValidUrl(plan.previewFileUrl);
-              const hasPlanFile = isValidUrl(plan.planFileUrl);
-              // For paid plans: link to payment URL; for free plans with file: link to file; else link to planUrl
-              const mainHref = isPaid ? plan.paymentUrl || "#" : hasPlanFile ? plan.planFileUrl! : plan.planUrl;
-
-              return (
-                <motion.div key={plan.id}
-                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.35, delay: i * 0.08 }} whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                  className="glass rounded-2xl overflow-hidden flex flex-col relative group">
-                  {plan.featured && <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</div>}
-                  {isPaid && <div className="absolute top-3 right-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{plan.currency || "₹"}{plan.price!.toLocaleString()}</div>}
-                  {!isPaid && <div className="absolute top-3 right-3 z-10 bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">Free</div>}
-                  {plan.image && (plan.image.startsWith("http") || plan.image.startsWith("/uploads/")) ? (
-                    <div className="aspect-[16/9] bg-dark-700 overflow-hidden"><img src={plan.image} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" /></div>
-                  ) : (
-                    <div className="aspect-[16/9] bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-dark-600">{plan.type === "gym" ? "\u{1F3CB}\uFE0F" : plan.type === "running" ? "\u{1F3C3}" : plan.type === "hybrid" ? "\u26A1" : "\u{1F4CB}"}</span>
-                    </div>
-                  )}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="flex items-center gap-2 mb-2">
-                      {plan.appIcon && (plan.appIcon.startsWith("http") || plan.appIcon.startsWith("/uploads/")) ? <img src={plan.appIcon} alt="" className="w-5 h-5 rounded-sm" /> : plan.appName ? <img src={`https://www.google.com/s2/favicons?domain=${plan.planUrl ? (() => { try { return new URL(plan.planUrl).hostname; } catch { return ""; } })() : ""}&sz=32`} alt="" className="w-5 h-5 rounded-sm" /> : null}
-                      <span className="text-xs text-gray-400 font-medium">{plan.appName}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${plan.type === "gym" ? "bg-purple-500/20 text-purple-400" : plan.type === "running" ? "bg-green-500/20 text-green-400" : plan.type === "hybrid" ? "bg-orange-500/20 text-orange-400" : "bg-blue-500/20 text-blue-400"}`}>{plan.type}</span>
-                    </div>
-                    <h3 className="text-white font-semibold text-sm mb-1">{plan.title}</h3>
-                    {plan.description && <p className="text-gray-500 text-xs leading-relaxed mb-3 flex-1 line-clamp-2">{plan.description}</p>}
-                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-3">
-                      {plan.duration && <span>{plan.duration}</span>}
-                      {plan.duration && plan.level && <span className="text-dark-600">&middot;</span>}
-                      {plan.level && <span>{plan.level}</span>}
-                    </div>
-                    <div className="flex items-center gap-2 mt-auto">
-                      {hasPreview && (
-                        <a href={plan.previewFileUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-dark-700 text-gray-300 hover:bg-dark-600 transition-colors">Preview</a>
-                      )}
-                      <a href={mainHref} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-neon text-dark-900 hover:brightness-110 transition-all">
-                        {isPaid ? "Buy Plan" : "Get Plan"}
-                      </a>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+            {workoutPlans.map((plan, i) => <PlanCard key={plan.id} plan={plan} index={i} />)}
           </div>
         </SectionWrapper>
       )}

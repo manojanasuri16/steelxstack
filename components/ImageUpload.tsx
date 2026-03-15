@@ -9,10 +9,21 @@ interface ImageUploadProps {
   onChange: (url: string) => void;
   label?: string;
   shape?: "square" | "circle";
+  accept?: "image" | "video" | "file";
+}
+
+function getFileType(url: string): "image" | "video" | "pdf" | "text" | "unknown" {
+  const lower = url.toLowerCase();
+  if (/\.(jpg|jpeg|png|webp|gif|svg|avif|bmp)(\?|$)/.test(lower)) return "image";
+  if (/\.(mp4|webm|mov|avi|mkv)(\?|$)/.test(lower)) return "video";
+  if (/\.(pdf)(\?|$)/.test(lower)) return "pdf";
+  if (/\.(txt|md|markdown|text)(\?|$)/.test(lower)) return "text";
+  // YouTube URLs
+  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "video";
+  return "unknown";
 }
 
 async function optimizeImage(blob: Blob): Promise<Blob> {
-  // If already webp from editor/camera, just check size
   if (blob.type === "image/webp" && blob.size < 500_000) return blob;
 
   return new Promise((resolve) => {
@@ -36,22 +47,36 @@ async function optimizeImage(blob: Blob): Promise<Blob> {
   });
 }
 
-async function uploadBlob(blob: Blob): Promise<string> {
+async function uploadFile(file: Blob, name: string): Promise<string> {
   const formData = new FormData();
-  formData.append("file", blob, `image-${Date.now()}.webp`);
+  formData.append("file", file, name);
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (res.ok) {
     const { url } = await res.json();
     return url;
   }
-  throw new Error("Upload failed");
+  const err = await res.json().catch(() => ({ error: "Upload failed" }));
+  throw new Error(err.error || "Upload failed");
 }
+
+const ACCEPT_MAP = {
+  image: "image/*",
+  video: "image/*,video/*",
+  file: "image/*,video/*,.pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown",
+};
+
+const HELP_MAP = {
+  image: "JPEG, PNG, WebP, SVG, GIF. Max 5MB.",
+  video: "Images or videos (MP4, WebM, MOV). Max 50MB. YouTube URLs also work.",
+  file: "Images, videos, PDF, text, markdown. Max 50MB.",
+};
 
 export default function ImageUpload({
   value,
   onChange,
   label = "Image",
   shape = "square",
+  accept = "image",
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -65,13 +90,25 @@ export default function ImageUpload({
     setEditorSrc(url);
   };
 
+  const uploadDirectly = async (file: File) => {
+    setUploading(true);
+    try {
+      const url = await uploadFile(file, file.name);
+      onChange(url);
+    } catch {
+      // silent fail
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleEditorApply = async (blob: Blob) => {
     if (editorSrc) URL.revokeObjectURL(editorSrc);
     setEditorSrc(null);
     setUploading(true);
     try {
       const optimized = await optimizeImage(blob);
-      const url = await uploadBlob(optimized);
+      const url = await uploadFile(optimized, `image-${Date.now()}.webp`);
       onChange(url);
     } catch {
       // silent fail
@@ -92,8 +129,12 @@ export default function ImageUpload({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith("image/")) openEditor(file);
-    // Reset input so same file can be re-selected
+    if (!file) return;
+    if (file.type.startsWith("image/")) {
+      openEditor(file);
+    } else {
+      uploadDirectly(file);
+    }
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -101,16 +142,51 @@ export default function ImageUpload({
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) openEditor(file);
+    if (!file) return;
+    if (file.type.startsWith("image/")) {
+      openEditor(file);
+    } else {
+      uploadDirectly(file);
+    }
   };
 
-  const isValidImage =
+  const isValidUrl =
     value &&
     (value.startsWith("http") ||
       value.startsWith("/uploads/") ||
       value.startsWith("blob:"));
 
+  const fileType = value ? getFileType(value) : "unknown";
   const shapeClass = shape === "circle" ? "rounded-full" : "rounded-xl";
+
+  const renderPreview = () => {
+    if (!isValidUrl) return null;
+    if (fileType === "video") {
+      return (
+        <div className="w-full h-full bg-dark-600 flex items-center justify-center">
+          <svg className="w-6 h-6 text-neon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+      );
+    }
+    if (fileType === "pdf") {
+      return (
+        <div className="w-full h-full bg-red-900/20 flex flex-col items-center justify-center gap-0.5">
+          <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+          <span className="text-red-400 text-[8px] font-bold">PDF</span>
+        </div>
+      );
+    }
+    if (fileType === "text") {
+      return (
+        <div className="w-full h-full bg-blue-900/20 flex flex-col items-center justify-center gap-0.5">
+          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          <span className="text-blue-400 text-[8px] font-bold">TXT</span>
+        </div>
+      );
+    }
+    // Default: image
+    return <img src={value} alt="Preview" className="w-full h-full object-cover" />;
+  };
 
   return (
     <div className="mb-4">
@@ -138,14 +214,9 @@ export default function ImageUpload({
             <div className="text-neon text-xs animate-pulse">
               Processing...
             </div>
-          ) : isValidImage ? (
+          ) : isValidUrl ? (
             <>
-              <img
-                src={value}
-                alt="Preview"
-                className="w-full h-full object-cover"
-              />
-              {/* Hover overlay */}
+              {renderPreview()}
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                 <span className="text-white text-[10px] font-medium">Edit</span>
               </div>
@@ -173,7 +244,7 @@ export default function ImageUpload({
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept={ACCEPT_MAP[accept]}
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -189,13 +260,15 @@ export default function ImageUpload({
             >
               Upload
             </button>
-            <button
-              type="button"
-              onClick={() => setShowCamera(true)}
-              className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
-            >
-              📸 Capture
-            </button>
+            {accept === "image" && (
+              <button
+                type="button"
+                onClick={() => setShowCamera(true)}
+                className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
+              >
+                Capture
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowUrlInput(!showUrlInput)}
@@ -205,16 +278,17 @@ export default function ImageUpload({
             </button>
             {value && (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Re-edit current image
-                    if (isValidImage) setEditorSrc(value);
-                  }}
-                  className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
-                >
-                  Replace
-                </button>
+                {fileType === "image" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isValidUrl) setEditorSrc(value);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium bg-dark-700 border border-glass-border text-gray-300 rounded-lg hover:text-white hover:border-neon/30 transition-colors"
+                  >
+                    Replace
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onChange("")}
@@ -231,13 +305,13 @@ export default function ImageUpload({
               type="text"
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="https://... or paste image URL"
+              placeholder="https://... or paste URL"
               className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50"
             />
           )}
 
           <p className="text-[10px] text-gray-600">
-            JPEG, PNG, WebP, SVG, GIF. Max 5MB. Auto-converts to WebP.
+            {HELP_MAP[accept]}
           </p>
         </div>
       </div>

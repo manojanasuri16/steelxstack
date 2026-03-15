@@ -665,8 +665,8 @@ function PlansTab({ plans, onChange }: { plans: WorkoutPlan[]; onChange: (p: Wor
                   <h4 className="text-sm font-bold text-white mb-3">Plan Files</h4>
                   <p className="text-gray-500 text-xs mb-3">Upload plan file (PDF, etc). For paid plans, users cannot access the full file until payment. Preview file is a sample shown to all users.</p>
                   <div className="grid sm:grid-cols-2 gap-x-6">
-                    <ImageUpload value={plan.planFileUrl || ""} onChange={(v) => updatePlan(plan.id, { planFileUrl: v || undefined })} label="Full Plan File" />
-                    <ImageUpload value={plan.previewFileUrl || ""} onChange={(v) => updatePlan(plan.id, { previewFileUrl: v || undefined })} label="Preview / Sample File" />
+                    <ImageUpload value={plan.planFileUrl || ""} onChange={(v) => updatePlan(plan.id, { planFileUrl: v || undefined })} label="Full Plan File" accept="file" />
+                    <ImageUpload value={plan.previewFileUrl || ""} onChange={(v) => updatePlan(plan.id, { previewFileUrl: v || undefined })} label="Preview / Sample File" accept="file" />
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-2">
@@ -1000,8 +1000,8 @@ function TransformationsTab({ items, onChange }: { items: Transformation[]; onCh
                 <ImageUpload value={tf.afterImage} onChange={(v) => update(tf.id, { afterImage: v })} label="After Photo" />
               </div>
               <div className="grid sm:grid-cols-2 gap-x-6">
-                <ImageUpload value={tf.beforeVideo || ""} onChange={(v) => update(tf.id, { beforeVideo: v || undefined })} label="Before Video (optional)" />
-                <ImageUpload value={tf.afterVideo || ""} onChange={(v) => update(tf.id, { afterVideo: v || undefined })} label="After Video (optional)" />
+                <ImageUpload value={tf.beforeVideo || ""} onChange={(v) => update(tf.id, { beforeVideo: v || undefined })} label="Before Video (optional — upload or YouTube URL)" accept="video" />
+                <ImageUpload value={tf.afterVideo || ""} onChange={(v) => update(tf.id, { afterVideo: v || undefined })} label="After Video (optional — upload or YouTube URL)" accept="video" />
               </div>
 
               {/* Transformation Plans */}
@@ -1021,8 +1021,8 @@ function TransformationsTab({ items, onChange }: { items: Transformation[]; onCh
                         <PriceInput value={plan.price} currency={plan.currency || "₹"} onChange={(v) => updatePlan(tf.id, plan.id, { price: v })} onCurrencyChange={(v) => updatePlan(tf.id, plan.id, { currency: v })} />
                       </div>
                       <div className="grid sm:grid-cols-2 gap-x-4">
-                        <ImageUpload value={plan.fileUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { fileUrl: v || undefined })} label="Plan File" />
-                        <ImageUpload value={plan.previewUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { previewUrl: v || undefined })} label="Preview / Sample" />
+                        <ImageUpload value={plan.fileUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { fileUrl: v || undefined })} label="Plan File" accept="file" />
+                        <ImageUpload value={plan.previewUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { previewUrl: v || undefined })} label="Preview / Sample" accept="file" />
                       </div>
                       {plan.price != null && plan.price > 0 && (
                         <Field label="Payment URL"><Input value={plan.paymentUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { paymentUrl: v || undefined })} placeholder="https://razorpay.me/..." /></Field>
