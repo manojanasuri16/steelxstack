@@ -7,7 +7,7 @@ import AppCard from "@/components/AppCard";
 import ProductCard from "@/components/ProductCard";
 import type {
   Creator, App, Product, ContactInfo, WorkoutPlan,
-  Transformation, DiscountCode, FAQItem, Achievement, ScheduleSlot,
+  Transformation, TransformationPlan, DiscountCode, FAQItem, Achievement, ScheduleSlot,
   SocialFeedConfig, SEOSettings, ConsultationConfig, TipConfig,
   SectionVisibility,
 } from "@/data/storefrontData";
@@ -36,9 +36,9 @@ function getSocialLabel(url: string): string {
 }
 
 // ─── Theme Toggle ───
-function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
+function ThemeToggle({ isDark, onToggle, hasDiscountBanner }: { isDark: boolean; onToggle: () => void; hasDiscountBanner?: boolean }) {
   return (
-    <button onClick={onToggle} className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all group" aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+    <button onClick={onToggle} className={`fixed right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all group ${hasDiscountBanner ? "top-12" : "top-4"}`} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
       {isDark ? (
         <svg className="w-5 h-5 text-yellow-400 group-hover:rotate-45 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
       ) : (
@@ -100,14 +100,21 @@ function AnimatedStat({ ach, delay }: { ach: Achievement; delay: number }) {
 }
 
 // ─── Transformation Slider ───
-function TransformationCard({ tf }: { tf: Transformation }) {
+function TransformationCard({ tf, currency }: { tf: Transformation; currency: string }) {
   const [sliderPos, setSliderPos] = useState(50);
+  const [mode, setMode] = useState<"image" | "video">("image");
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
-  const hasBeforeImg = tf.beforeImage && (tf.beforeImage.startsWith("http") || tf.beforeImage.startsWith("/uploads/"));
-  const hasAfterImg = tf.afterImage && (tf.afterImage.startsWith("http") || tf.afterImage.startsWith("/uploads/"));
-  if (!hasBeforeImg || !hasAfterImg) return null;
+  const isValid = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
+  const hasBeforeImg = isValid(tf.beforeImage);
+  const hasAfterImg = isValid(tf.afterImage);
+  const hasBeforeVid = isValid(tf.beforeVideo);
+  const hasAfterVid = isValid(tf.afterVideo);
+  const hasVideo = hasBeforeVid && hasAfterVid;
+
+  if (!hasBeforeImg && !hasBeforeVid) return null;
+  if (!hasAfterImg && !hasAfterVid) return null;
 
   const updatePos = (clientX: number) => {
     if (!containerRef.current) return;
@@ -118,33 +125,85 @@ function TransformationCard({ tf }: { tf: Transformation }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass rounded-2xl overflow-hidden">
-      <div ref={containerRef} className="relative aspect-[4/3] select-none cursor-col-resize overflow-hidden"
-        onMouseDown={() => { dragging.current = true; }}
-        onMouseMove={(e) => { if (dragging.current) updatePos(e.clientX); }}
-        onMouseUp={() => { dragging.current = false; }}
-        onMouseLeave={() => { dragging.current = false; }}
-        onTouchStart={() => { dragging.current = true; }}
-        onTouchMove={(e) => { if (dragging.current) updatePos(e.touches[0].clientX); }}
-        onTouchEnd={() => { dragging.current = false; }}
-        onClick={(e) => updatePos(e.clientX)}
-      >
-        <img src={tf.afterImage} alt="After" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 overflow-hidden" style={{ width: `${sliderPos}%` }}>
-          <img src={tf.beforeImage} alt="Before" className="absolute inset-0 w-full h-full object-cover" style={{ minWidth: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100%" }} />
+      {/* Image/Video toggle */}
+      {hasVideo && hasBeforeImg && (
+        <div className="flex justify-center gap-2 p-3 pb-0">
+          {(["image", "video"] as const).map((m) => (
+            <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${mode === m ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-400"}`}>{m === "image" ? "Photos" : "Videos"}</button>
+          ))}
         </div>
-        <div className="absolute top-0 bottom-0" style={{ left: `${sliderPos}%` }}>
-          <div className="absolute top-0 bottom-0 w-0.5 bg-white -translate-x-1/2" />
-          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>
+      )}
+
+      {mode === "video" && hasVideo ? (
+        <div className="grid grid-cols-2 gap-1 p-1">
+          <div className="relative">
+            <video src={tf.beforeVideo} controls className="w-full aspect-[4/3] object-cover rounded-lg" playsInline />
+            <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</span>
+          </div>
+          <div className="relative">
+            <video src={tf.afterVideo} controls className="w-full aspect-[4/3] object-cover rounded-lg" playsInline />
+            <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</span>
           </div>
         </div>
-        <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</div>
-        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</div>
-      </div>
+      ) : hasBeforeImg && hasAfterImg ? (
+        <div ref={containerRef} className="relative aspect-[4/3] select-none cursor-col-resize overflow-hidden"
+          onMouseDown={() => { dragging.current = true; }}
+          onMouseMove={(e) => { if (dragging.current) updatePos(e.clientX); }}
+          onMouseUp={() => { dragging.current = false; }}
+          onMouseLeave={() => { dragging.current = false; }}
+          onTouchStart={() => { dragging.current = true; }}
+          onTouchMove={(e) => { if (dragging.current) updatePos(e.touches[0].clientX); }}
+          onTouchEnd={() => { dragging.current = false; }}
+          onClick={(e) => updatePos(e.clientX)}
+        >
+          <img src={tf.afterImage} alt="After" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 overflow-hidden" style={{ width: `${sliderPos}%` }}>
+            <img src={tf.beforeImage} alt="Before" className="absolute inset-0 w-full h-full object-cover" style={{ minWidth: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100%" }} />
+          </div>
+          <div className="absolute top-0 bottom-0" style={{ left: `${sliderPos}%` }}>
+            <div className="absolute top-0 bottom-0 w-0.5 bg-white -translate-x-1/2" />
+            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>
+            </div>
+          </div>
+          <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</div>
+          <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</div>
+        </div>
+      ) : null}
+
       <div className="p-4">
         <h3 className="text-white font-semibold text-sm">{tf.title}</h3>
         {tf.duration && <span className="text-neon text-xs font-medium">{tf.duration}</span>}
         {tf.description && <p className="text-gray-400 text-xs mt-1">{tf.description}</p>}
+
+        {/* Transformation Plans */}
+        {tf.plans && tf.plans.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <p className="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Plans</p>
+            {tf.plans.map((plan) => {
+              const isFree = !plan.price || plan.price <= 0;
+              const planCurrency = plan.currency || currency;
+              return (
+                <div key={plan.id} className="flex items-center justify-between bg-dark-700/50 rounded-lg p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${plan.type === "diet" ? "bg-green-500/20 text-green-400" : plan.type === "workout" ? "bg-purple-500/20 text-purple-400" : "bg-orange-500/20 text-orange-400"}`}>{plan.type}</span>
+                    <span className="text-white text-xs font-medium">{plan.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isFree && <span className="text-neon text-xs font-bold">{planCurrency}{plan.price!.toLocaleString()}</span>}
+                    {isFree && isValid(plan.fileUrl) ? (
+                      <a href={plan.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-neon text-dark-900 hover:brightness-110">Free Download</a>
+                    ) : !isFree && plan.paymentUrl ? (
+                      <a href={plan.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-neon text-dark-900 hover:brightness-110">Get Plan</a>
+                    ) : isValid(plan.previewUrl) ? (
+                      <a href={plan.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold px-3 py-1 rounded-full bg-dark-600 text-gray-300 hover:bg-dark-500">Preview</a>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -265,8 +324,11 @@ function FAQSection({ items }: { items: FAQItem[] }) {
 }
 
 // ─── Product Comparison ───
-function ProductComparison({ products, currency }: { products: Product[]; currency: string }) {
+function ProductComparison({ products, currency, categories }: { products: Product[]; currency: string; categories: string[] }) {
+  const [activeCategory, setActiveCategory] = useState(categories[0] || "");
   const [selected, setSelected] = useState<string[]>([]);
+
+  const categoryProducts = products.filter((p) => p.category === activeCategory);
   if (products.length < 2) return null;
 
   const toggleProduct = (id: string) => {
@@ -274,69 +336,109 @@ function ProductComparison({ products, currency }: { products: Product[]; curren
     else if (selected.length < 3) setSelected([...selected, id]);
   };
 
-  const compareProducts = products.filter((p) => selected.includes(p.id));
+  const switchCategory = (cat: string) => {
+    setActiveCategory(cat);
+    setSelected([]);
+  };
+
+  const compareProducts = categoryProducts.filter((p) => selected.includes(p.id));
+  const isValid = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2 mb-6 justify-center">
-        {products.map((p) => (
-          <button key={p.id} onClick={() => toggleProduct(p.id)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selected.includes(p.id) ? "bg-neon text-dark-900" : "glass text-gray-400 hover:text-white"}`}>
-            {p.name}
+      {/* Category filter */}
+      <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 pb-1 justify-center">
+        {categories.map((cat) => (
+          <button key={cat} onClick={() => switchCategory(cat)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeCategory === cat ? "bg-neon text-dark-900" : "glass text-gray-300 hover:text-white"}`}>
+            {cat}
           </button>
         ))}
       </div>
-      <p className="text-gray-500 text-xs text-center mb-4">Select 2-3 products to compare</p>
 
-      {compareProducts.length >= 2 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-glass-border">
-                <th className="text-left text-gray-500 font-medium p-3 w-28">Feature</th>
-                {compareProducts.map((p) => (
-                  <th key={p.id} className="text-center text-white font-medium p-3">{p.name}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="text-gray-300">
-              <tr className="border-b border-glass-border/50">
-                <td className="p-3 text-gray-500">Image</td>
-                {compareProducts.map((p) => (
-                  <td key={p.id} className="p-3 text-center">
-                    {p.image && (p.image.startsWith("http") || p.image.startsWith("/uploads/")) ? (
-                      <img src={p.image} alt="" className="w-16 h-16 rounded-lg object-cover mx-auto" />
-                    ) : <span className="text-gray-600">—</span>}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b border-glass-border/50">
-                <td className="p-3 text-gray-500">Price</td>
-                {compareProducts.map((p) => (
-                  <td key={p.id} className="p-3 text-center text-neon font-bold">
-                    {p.price ? `${p.currency || currency}${p.price.toLocaleString()}` : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b border-glass-border/50">
-                <td className="p-3 text-gray-500">Category</td>
-                {compareProducts.map((p) => <td key={p.id} className="p-3 text-center">{p.category}</td>)}
-              </tr>
-              <tr className="border-b border-glass-border/50">
-                <td className="p-3 text-gray-500">Rating</td>
-                {compareProducts.map((p) => (
-                  <td key={p.id} className="p-3 text-center">
-                    {p.rating ? <span className="text-yellow-400">{"★".repeat(p.rating)}{"☆".repeat(5 - p.rating)}</span> : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="p-3 text-gray-500">Note</td>
-                {compareProducts.map((p) => <td key={p.id} className="p-3 text-center text-xs">{p.note || "—"}</td>)}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      {/* Product selection as cards */}
+      {categoryProducts.length < 2 ? (
+        <p className="text-gray-500 text-sm text-center py-4">Not enough products in this category to compare.</p>
+      ) : (
+        <>
+          <p className="text-gray-400 text-xs text-center mb-4">Tap products to compare (max 3)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
+            {categoryProducts.map((p) => (
+              <button key={p.id} onClick={() => toggleProduct(p.id)}
+                className={`glass rounded-xl overflow-hidden text-left transition-all ${selected.includes(p.id) ? "ring-2 ring-neon" : "hover:bg-white/5"}`}>
+                <div className="aspect-square bg-dark-700 relative overflow-hidden">
+                  {isValid(p.image) ? (
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-dark-600">{p.name.charAt(0)}</div>
+                  )}
+                  {selected.includes(p.id) && (
+                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-neon flex items-center justify-center">
+                      <svg className="w-3.5 h-3.5 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-white text-xs font-medium line-clamp-1">{p.name}</p>
+                  {p.price != null && p.price > 0 && <p className="text-neon text-xs font-bold mt-0.5">{p.currency || currency}{p.price.toLocaleString()}</p>}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Comparison table */}
+          <AnimatePresence>
+            {compareProducts.length >= 2 && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="glass rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-glass-border">
+                        <th className="text-left text-gray-500 font-medium p-3 sm:p-4 w-24 sm:w-28 text-xs">Feature</th>
+                        {compareProducts.map((p) => (
+                          <th key={p.id} className="text-center p-3 sm:p-4">
+                            <div className="flex flex-col items-center gap-2">
+                              {isValid(p.image) && <img src={p.image} alt="" className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover" />}
+                              <span className="text-white font-medium text-xs sm:text-sm">{p.name}</span>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="text-gray-300">
+                      <tr className="border-b border-glass-border/30">
+                        <td className="p-3 sm:p-4 text-gray-500 text-xs">Price</td>
+                        {compareProducts.map((p) => (
+                          <td key={p.id} className="p-3 sm:p-4 text-center text-neon font-bold text-sm">
+                            {p.price ? `${p.currency || currency}${p.price.toLocaleString()}` : "—"}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-glass-border/30">
+                        <td className="p-3 sm:p-4 text-gray-500 text-xs">Rating</td>
+                        {compareProducts.map((p) => (
+                          <td key={p.id} className="p-3 sm:p-4 text-center">
+                            {p.rating ? <span className="text-yellow-400 text-sm">{"★".repeat(p.rating)}{"☆".repeat(5 - p.rating)}</span> : <span className="text-gray-600">—</span>}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-glass-border/30">
+                        <td className="p-3 sm:p-4 text-gray-500 text-xs">Available On</td>
+                        {compareProducts.map((p) => (
+                          <td key={p.id} className="p-3 sm:p-4 text-center text-xs">{p.buyLinks.map((l) => l.platform).join(", ") || "—"}</td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="p-3 sm:p-4 text-gray-500 text-xs">Note</td>
+                        {compareProducts.map((p) => <td key={p.id} className="p-3 sm:p-4 text-center text-xs">{p.note || "—"}</td>)}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </div>
   );
@@ -400,7 +502,8 @@ export default function StorefrontPage({
     else { document.body.classList.add("light"); localStorage.setItem("sx-theme", "light"); }
   };
 
-  const filteredProducts = activeCategory === "All" ? products : products.filter((p) => p.category === activeCategory);
+  const filteredProducts = (activeCategory === "All" ? products : products.filter((p) => p.category === activeCategory))
+    .sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
   const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE);
   const hasContacts = contacts.phone || contacts.email || contacts.socials.length > 0;
@@ -426,10 +529,11 @@ export default function StorefrontPage({
   return (
     <main className="min-h-screen">
       <AnalyticsTracker />
-      <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
       {/* Discount Banner */}
       {showDiscountBanner && <DiscountBanner codes={discountCodes} />}
+
+      <ThemeToggle isDark={isDark} onToggle={toggleTheme} hasDiscountBanner={showDiscountBanner} />
 
       {/* HERO */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center px-4 overflow-hidden">
@@ -481,36 +585,54 @@ export default function StorefrontPage({
       {showPlans && (
         <SectionWrapper id="plans" title="My Workout Plans" subtitle="Follow the exact plans I use. Whether you lift, run, or do both.">
           <div className="grid sm:grid-cols-2 gap-4">
-            {workoutPlans.map((plan, i) => (
-              <motion.a key={plan.id} href={plan.paymentUrl || plan.planUrl} target="_blank" rel="noopener noreferrer"
-                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.35, delay: i * 0.08 }} whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="glass rounded-2xl overflow-hidden flex flex-col relative group">
-                {plan.featured && <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</div>}
-                {plan.price != null && plan.price > 0 && <div className="absolute top-3 right-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{plan.currency || "₹"}{plan.price.toLocaleString()}</div>}
-                {plan.image && (plan.image.startsWith("http") || plan.image.startsWith("/uploads/")) ? (
-                  <div className="aspect-[16/9] bg-dark-700 overflow-hidden"><img src={plan.image} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" /></div>
-                ) : (
-                  <div className="aspect-[16/9] bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center">
-                    <span className="text-3xl font-bold text-dark-600">{plan.type === "gym" ? "\u{1F3CB}\uFE0F" : plan.type === "running" ? "\u{1F3C3}" : plan.type === "hybrid" ? "\u26A1" : "\u{1F4CB}"}</span>
+            {workoutPlans.map((plan, i) => {
+              const isPaid = plan.price != null && plan.price > 0;
+              const isValidUrl = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
+              const hasPreview = isValidUrl(plan.previewFileUrl);
+              const hasPlanFile = isValidUrl(plan.planFileUrl);
+              // For paid plans: link to payment URL; for free plans with file: link to file; else link to planUrl
+              const mainHref = isPaid ? plan.paymentUrl || "#" : hasPlanFile ? plan.planFileUrl! : plan.planUrl;
+
+              return (
+                <motion.div key={plan.id}
+                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.35, delay: i * 0.08 }} whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="glass rounded-2xl overflow-hidden flex flex-col relative group">
+                  {plan.featured && <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</div>}
+                  {isPaid && <div className="absolute top-3 right-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{plan.currency || "₹"}{plan.price!.toLocaleString()}</div>}
+                  {!isPaid && <div className="absolute top-3 right-3 z-10 bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">Free</div>}
+                  {plan.image && (plan.image.startsWith("http") || plan.image.startsWith("/uploads/")) ? (
+                    <div className="aspect-[16/9] bg-dark-700 overflow-hidden"><img src={plan.image} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" /></div>
+                  ) : (
+                    <div className="aspect-[16/9] bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-dark-600">{plan.type === "gym" ? "\u{1F3CB}\uFE0F" : plan.type === "running" ? "\u{1F3C3}" : plan.type === "hybrid" ? "\u26A1" : "\u{1F4CB}"}</span>
+                    </div>
+                  )}
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="flex items-center gap-2 mb-2">
+                      {plan.appIcon && (plan.appIcon.startsWith("http") || plan.appIcon.startsWith("/uploads/")) ? <img src={plan.appIcon} alt="" className="w-5 h-5 rounded-sm" /> : plan.appName ? <img src={`https://www.google.com/s2/favicons?domain=${plan.planUrl ? (() => { try { return new URL(plan.planUrl).hostname; } catch { return ""; } })() : ""}&sz=32`} alt="" className="w-5 h-5 rounded-sm" /> : null}
+                      <span className="text-xs text-gray-400 font-medium">{plan.appName}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${plan.type === "gym" ? "bg-purple-500/20 text-purple-400" : plan.type === "running" ? "bg-green-500/20 text-green-400" : plan.type === "hybrid" ? "bg-orange-500/20 text-orange-400" : "bg-blue-500/20 text-blue-400"}`}>{plan.type}</span>
+                    </div>
+                    <h3 className="text-white font-semibold text-sm mb-1">{plan.title}</h3>
+                    {plan.description && <p className="text-gray-500 text-xs leading-relaxed mb-3 flex-1 line-clamp-2">{plan.description}</p>}
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-3">
+                      {plan.duration && <span>{plan.duration}</span>}
+                      {plan.duration && plan.level && <span className="text-dark-600">&middot;</span>}
+                      {plan.level && <span>{plan.level}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 mt-auto">
+                      {hasPreview && (
+                        <a href={plan.previewFileUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-dark-700 text-gray-300 hover:bg-dark-600 transition-colors">Preview</a>
+                      )}
+                      <a href={mainHref} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-neon text-dark-900 hover:brightness-110 transition-all">
+                        {isPaid ? "Buy Plan" : "Get Plan"}
+                      </a>
+                    </div>
                   </div>
-                )}
-                <div className="p-4 flex-1 flex flex-col">
-                  <div className="flex items-center gap-2 mb-2">
-                    {plan.appIcon && (plan.appIcon.startsWith("http") || plan.appIcon.startsWith("/uploads/")) ? <img src={plan.appIcon} alt="" className="w-5 h-5 rounded-sm" /> : plan.appName ? <img src={`https://www.google.com/s2/favicons?domain=${plan.planUrl ? (() => { try { return new URL(plan.planUrl).hostname; } catch { return ""; } })() : ""}&sz=32`} alt="" className="w-5 h-5 rounded-sm" /> : null}
-                    <span className="text-xs text-gray-400 font-medium">{plan.appName}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${plan.type === "gym" ? "bg-purple-500/20 text-purple-400" : plan.type === "running" ? "bg-green-500/20 text-green-400" : plan.type === "hybrid" ? "bg-orange-500/20 text-orange-400" : "bg-blue-500/20 text-blue-400"}`}>{plan.type}</span>
-                  </div>
-                  <h3 className="text-white font-semibold text-sm mb-1">{plan.title}</h3>
-                  {plan.description && <p className="text-gray-500 text-xs leading-relaxed mb-3 flex-1 line-clamp-2">{plan.description}</p>}
-                  <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                    {plan.duration && <span>{plan.duration}</span>}
-                    {plan.duration && plan.level && <span className="text-dark-600">&middot;</span>}
-                    {plan.level && <span>{plan.level}</span>}
-                  </div>
-                </div>
-              </motion.a>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </SectionWrapper>
       )}
@@ -519,7 +641,7 @@ export default function StorefrontPage({
       {showTransforms && (
         <SectionWrapper id="transformations" title="My Transformation" subtitle="The journey, captured. Drag the slider to compare.">
           <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-            {transformations.map((tf) => <TransformationCard key={tf.id} tf={tf} />)}
+            {transformations.map((tf) => <TransformationCard key={tf.id} tf={tf} currency={currency} />)}
           </div>
         </SectionWrapper>
       )}
@@ -552,7 +674,7 @@ export default function StorefrontPage({
       {/* Product Comparison */}
       {showComparison && (
         <SectionWrapper id="compare" title="Compare Products" subtitle="Side-by-side comparison to help you choose.">
-          <ProductComparison products={products} currency={currency} />
+          <ProductComparison products={products} currency={currency} categories={categories} />
         </SectionWrapper>
       )}
 

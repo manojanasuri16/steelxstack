@@ -24,7 +24,7 @@ import { CSS } from "@dnd-kit/utilities";
 // ─── Types ───
 import type {
   Creator, App, BuyLink, Product, SocialLink, ContactInfo, WorkoutPlan,
-  Transformation, DiscountCode, FAQItem, Achievement, ScheduleSlot,
+  Transformation, TransformationPlan, DiscountCode, FAQItem, Achievement, ScheduleSlot,
   SocialFeedConfig, SEOSettings, ConsultationConfig, TipConfig,
   SectionVisibility, LanguageConfig,
 } from "@/data/storefrontData";
@@ -661,6 +661,15 @@ function PlansTab({ plans, onChange }: { plans: WorkoutPlan[]; onChange: (p: Wor
                     <Field label="Payment URL"><Input value={plan.paymentUrl || ""} onChange={(v) => updatePlan(plan.id, { paymentUrl: v || undefined })} placeholder="https://razorpay.me/..." /></Field>
                   </div>
                 </div>
+                {/* Plan Files */}
+                <div className="glass rounded-xl p-4 mb-4">
+                  <h4 className="text-sm font-bold text-white mb-3">Plan Files</h4>
+                  <p className="text-gray-500 text-xs mb-3">Upload plan file (PDF, etc). For paid plans, users cannot access the full file until payment. Preview file is a sample shown to all users.</p>
+                  <div className="grid sm:grid-cols-2 gap-x-6">
+                    <ImageUpload value={plan.planFileUrl || ""} onChange={(v) => updatePlan(plan.id, { planFileUrl: v || undefined })} label="Full Plan File" />
+                    <ImageUpload value={plan.previewFileUrl || ""} onChange={(v) => updatePlan(plan.id, { previewFileUrl: v || undefined })} label="Preview / Sample File" />
+                  </div>
+                </div>
                 <div className="flex items-center justify-between pt-2">
                   <Toggle checked={!!plan.featured} onChange={(v) => updatePlan(plan.id, { featured: v })} label="Featured Plan" />
                   <button onClick={() => deletePlan(plan.id)} className="text-red-400 text-sm hover:text-red-300">Delete Plan</button>
@@ -943,15 +952,39 @@ function MessagesTab({ showToast }: { showToast: (msg: string, type: "success" |
 }
 
 // ─── Transformations Tab ───
+const TF_PLAN_TYPES = [
+  { value: "diet", label: "Diet Plan" },
+  { value: "workout", label: "Workout Plan" },
+  { value: "running", label: "Running Plan" },
+];
+
 function TransformationsTab({ items, onChange }: { items: Transformation[]; onChange: (t: Transformation[]) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const update = (id: string, u: Partial<Transformation>) => onChange(items.map((t) => t.id === id ? { ...t, ...u } : t));
   const remove = (id: string) => { onChange(items.filter((t) => t.id !== id)); setEditing(null); };
-  const add = () => { const n: Transformation = { id: `tf-${Date.now()}`, title: "", beforeImage: "", afterImage: "" }; onChange([...items, n]); setEditing(n.id); };
+  const add = () => { const n: Transformation = { id: `tf-${Date.now()}`, title: "", beforeImage: "", afterImage: "", plans: [] }; onChange([...items, n]); setEditing(n.id); };
+
+  const updatePlan = (tfId: string, planId: string, u: Partial<TransformationPlan>) => {
+    const tf = items.find((t) => t.id === tfId);
+    if (!tf) return;
+    const plans = (tf.plans || []).map((p) => p.id === planId ? { ...p, ...u } : p);
+    update(tfId, { plans });
+  };
+  const addPlan = (tfId: string) => {
+    const tf = items.find((t) => t.id === tfId);
+    if (!tf) return;
+    const np: TransformationPlan = { id: `tfp-${Date.now()}`, title: "", type: "diet" };
+    update(tfId, { plans: [...(tf.plans || []), np] });
+  };
+  const removePlan = (tfId: string, planId: string) => {
+    const tf = items.find((t) => t.id === tfId);
+    if (!tf) return;
+    update(tfId, { plans: (tf.plans || []).filter((p) => p.id !== planId) });
+  };
 
   return (
     <div className="space-y-4">
-      <p className="text-gray-500 text-xs">Add your fitness transformation before/after photos. Empty section is hidden on the public page.</p>
+      <p className="text-gray-500 text-xs">Add your fitness transformation before/after photos and videos. Attach diet/workout plans (free or paid). Empty section is hidden on the public page.</p>
       {items.map((tf) => (
         <div key={tf.id} className="glass rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5" onClick={() => setEditing(editing === tf.id ? null : tf.id)}>
@@ -967,6 +1000,41 @@ function TransformationsTab({ items, onChange }: { items: Transformation[]; onCh
                 <ImageUpload value={tf.beforeImage} onChange={(v) => update(tf.id, { beforeImage: v })} label="Before Photo" />
                 <ImageUpload value={tf.afterImage} onChange={(v) => update(tf.id, { afterImage: v })} label="After Photo" />
               </div>
+              <div className="grid sm:grid-cols-2 gap-x-6">
+                <ImageUpload value={tf.beforeVideo || ""} onChange={(v) => update(tf.id, { beforeVideo: v || undefined })} label="Before Video (optional)" />
+                <ImageUpload value={tf.afterVideo || ""} onChange={(v) => update(tf.id, { afterVideo: v || undefined })} label="After Video (optional)" />
+              </div>
+
+              {/* Transformation Plans */}
+              <div className="glass rounded-xl p-4 mb-4">
+                <h4 className="text-sm font-bold text-white mb-2">Plans (Diet, Workout, Running)</h4>
+                <p className="text-gray-500 text-xs mb-3">Attach plans to this transformation. Free plans are downloadable; paid plans require payment.</p>
+                <div className="space-y-3">
+                  {(tf.plans || []).map((plan) => (
+                    <div key={plan.id} className="bg-dark-700/50 rounded-lg p-3 space-y-2">
+                      <div className="grid sm:grid-cols-3 gap-x-4">
+                        <Field label="Plan Title"><Input value={plan.title} onChange={(v) => updatePlan(tf.id, plan.id, { title: v })} placeholder="My Diet Plan" /></Field>
+                        <Field label="Type">
+                          <select value={plan.type} onChange={(e) => updatePlan(tf.id, plan.id, { type: e.target.value as TransformationPlan["type"] })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
+                            {TF_PLAN_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                          </select>
+                        </Field>
+                        <PriceInput value={plan.price} currency={plan.currency || "₹"} onChange={(v) => updatePlan(tf.id, plan.id, { price: v })} onCurrencyChange={(v) => updatePlan(tf.id, plan.id, { currency: v })} />
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-x-4">
+                        <ImageUpload value={plan.fileUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { fileUrl: v || undefined })} label="Plan File" />
+                        <ImageUpload value={plan.previewUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { previewUrl: v || undefined })} label="Preview / Sample" />
+                      </div>
+                      {plan.price != null && plan.price > 0 && (
+                        <Field label="Payment URL"><Input value={plan.paymentUrl || ""} onChange={(v) => updatePlan(tf.id, plan.id, { paymentUrl: v || undefined })} placeholder="https://razorpay.me/..." /></Field>
+                      )}
+                      <button onClick={() => removePlan(tf.id, plan.id)} className="text-red-400 text-xs hover:text-red-300">Remove Plan</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => addPlan(tf.id)} className="mt-2 text-neon text-xs hover:underline">+ Add Plan</button>
+              </div>
+
               <button onClick={() => remove(tf.id)} className="text-red-400 text-sm hover:text-red-300 mt-2">Delete</button>
             </div></div>
           )}
@@ -1220,8 +1288,8 @@ function AnalyticsTab() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/analytics").then((r) => r.json()),
-      fetch("/api/newsletter").then((r) => r.json()),
+      fetch("/api/analytics", { credentials: "include" }).then((r) => r.ok ? r.json() : null),
+      fetch("/api/newsletter", { credentials: "include" }).then((r) => r.ok ? r.json() : []),
     ]).then(([a, s]) => {
       setData(a);
       setSubs(Array.isArray(s) ? s : []);

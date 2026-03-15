@@ -104,8 +104,24 @@ function migrateData(raw: any): StorefrontData {
   // Ensure workoutPlans exists
   if (!data.workoutPlans) data.workoutPlans = DEFAULT_DATA.workoutPlans;
 
+  // Migrate workout plans: ensure new file fields
+  if (data.workoutPlans) {
+    data.workoutPlans = data.workoutPlans.map((p: Record<string, unknown>) => ({
+      ...p,
+      previewFileUrl: p.previewFileUrl || undefined,
+      planFileUrl: p.planFileUrl || undefined,
+    }));
+  }
+
   // Ensure new collections exist
   if (!data.transformations) data.transformations = [];
+  // Migrate transformations: ensure video + plans fields
+  data.transformations = data.transformations.map((t: Record<string, unknown>) => ({
+    ...t,
+    beforeVideo: t.beforeVideo || undefined,
+    afterVideo: t.afterVideo || undefined,
+    plans: t.plans || [],
+  }));
   if (!data.discountCodes) data.discountCodes = [];
   if (!data.faq) data.faq = [];
   if (!data.achievements) data.achievements = [];

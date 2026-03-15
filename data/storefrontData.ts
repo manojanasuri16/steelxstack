@@ -62,6 +62,8 @@ export interface WorkoutPlan {
   price?: number;
   currency?: string;
   paymentUrl?: string;
+  previewFileUrl?: string;
+  planFileUrl?: string;
 }
 
 export interface SocialLink {
@@ -89,13 +91,27 @@ export interface ContactMessage {
 
 // ─── New Feature Interfaces ───
 
+export interface TransformationPlan {
+  id: string;
+  title: string;
+  type: "diet" | "workout" | "running";
+  fileUrl?: string;
+  previewUrl?: string;
+  price?: number;
+  currency?: string;
+  paymentUrl?: string;
+}
+
 export interface Transformation {
   id: string;
   title: string;
   beforeImage: string;
   afterImage: string;
+  beforeVideo?: string;
+  afterVideo?: string;
   description?: string;
   duration?: string;
+  plans?: TransformationPlan[];
 }
 
 export interface DiscountCode {
