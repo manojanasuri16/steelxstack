@@ -212,8 +212,10 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
 
       {/* Lightbox */}
       <ImageLightbox
-        images={activeImages}
+        images={productImages}
+        wornImages={wornImages}
         initialIndex={lightboxIndex}
+        initialMode={showWorn ? "onme" : "product"}
         alt={product.name}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
