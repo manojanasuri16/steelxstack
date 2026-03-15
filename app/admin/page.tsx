@@ -22,77 +22,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 // ─── Types ───
-interface Creator {
-  name: string;
-  tagline: string;
-  bio: string;
-  profileImage: string;
-  favicon?: string;
-  ctaPrimary: { label: string; href: string };
-  ctaSecondary: { label: string; href: string };
-  ctaTertiary?: { label: string; href: string };
-  adminLogo?: string;
-  adminTitle?: string;
-  footerText?: string;
-}
-
-interface App {
-  id: string;
-  name: string;
-  logo: string;
-  description: string;
-  profileUrl: string;
-  affiliateUrl?: string;
-  promoCode?: string;
-  highlight?: boolean;
-}
-
-interface BuyLink {
-  platform: string;
-  url: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  image: string;
-  images?: string[];
-  wornImage?: string;
-  wornImages?: string[];
-  buyLinks: BuyLink[];
-  note: string;
-  price?: number;
-  currency?: string;
-  featured?: boolean;
-}
-
-interface SocialLink {
-  id: string;
-  label: string;
-  url: string;
-  icon?: string;
-}
-
-interface ContactInfo {
-  phone?: string;
-  email?: string;
-  socials: SocialLink[];
-}
-
-interface WorkoutPlan {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  appName: string;
-  appIcon?: string;
-  planUrl: string;
-  type: "gym" | "running" | "hybrid" | "other";
-  duration?: string;
-  level?: string;
-  featured?: boolean;
-}
+import type {
+  Creator, App, BuyLink, Product, SocialLink, ContactInfo, WorkoutPlan,
+  Transformation, DiscountCode, FAQItem, Achievement, ScheduleSlot,
+  SocialFeedConfig, SEOSettings, ConsultationConfig, TipConfig,
+  SectionVisibility, LanguageConfig,
+} from "@/data/storefrontData";
 
 interface StorefrontData {
   creator: Creator;
@@ -102,6 +37,18 @@ interface StorefrontData {
   currency: string;
   contacts: ContactInfo;
   workoutPlans: WorkoutPlan[];
+  transformations: Transformation[];
+  discountCodes: DiscountCode[];
+  faq: FAQItem[];
+  achievements: Achievement[];
+  schedule: ScheduleSlot[];
+  socialFeed: SocialFeedConfig;
+  seo: SEOSettings;
+  consultation: ConsultationConfig;
+  tip: TipConfig;
+  sectionVisibility: SectionVisibility;
+  language: LanguageConfig;
+  newsletterEnabled: boolean;
 }
 
 // ─── Toast ───
@@ -429,6 +376,32 @@ function SortableProductItem({ product, products, categories, currency, editing,
               <div />
             </div>
             <Field label="Personal Note"><TextArea value={product.note} onChange={(v) => updateProduct(product.id, { note: v })} placeholder="Why do you recommend this?" /></Field>
+
+            {/* Review & Rating */}
+            <div className="glass rounded-xl p-4 mb-4">
+              <h4 className="text-sm font-bold text-white mb-3">Your Review</h4>
+              <Field label="Rating (1-5 stars)">
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button key={star} type="button" onClick={() => updateProduct(product.id, { rating: product.rating === star ? undefined : star })}
+                      className={`text-2xl transition-colors ${(product.rating || 0) >= star ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400/50"}`}>
+                      ★
+                    </button>
+                  ))}
+                  {product.rating && <span className="text-gray-400 text-sm ml-2 self-center">{product.rating}/5</span>}
+                </div>
+              </Field>
+              <Field label="Review Text (optional)">
+                <TextArea value={product.review || ""} onChange={(v) => updateProduct(product.id, { review: v || undefined })} placeholder="Your honest take on this product..." rows={2} />
+              </Field>
+              <MultiImageUpload
+                images={product.reviewMedia || []}
+                onChange={(imgs) => updateProduct(product.id, { reviewMedia: imgs })}
+                label="Review Photos / Videos (paste video URLs too)"
+                max={5}
+              />
+            </div>
+
             <div className="flex items-center justify-between pt-2">
               <Toggle checked={!!product.featured} onChange={(v) => updateProduct(product.id, { featured: v })} label="Featured Product" />
               <button onClick={() => deleteProduct(product.id)} className="text-red-400 text-sm hover:text-red-300">Delete Product</button>
@@ -679,6 +652,14 @@ function PlansTab({ plans, onChange }: { plans: WorkoutPlan[]; onChange: (p: Wor
                   </Field>
                   <Field label="Duration"><Input value={plan.duration || ""} onChange={(v) => updatePlan(plan.id, { duration: v || undefined })} placeholder="6 weeks" /></Field>
                   <Field label="Level"><Input value={plan.level || ""} onChange={(v) => updatePlan(plan.id, { level: v || undefined })} placeholder="Beginner, Intermediate..." /></Field>
+                </div>
+                {/* Paid Plan */}
+                <div className="glass rounded-xl p-4 mb-4">
+                  <h4 className="text-sm font-bold text-white mb-3">Pricing (optional — leave empty for free plans)</h4>
+                  <div className="grid sm:grid-cols-3 gap-x-6">
+                    <PriceInput value={plan.price} currency={plan.currency || "₹"} onChange={(v) => updatePlan(plan.id, { price: v })} onCurrencyChange={(v) => updatePlan(plan.id, { currency: v })} />
+                    <Field label="Payment URL"><Input value={plan.paymentUrl || ""} onChange={(v) => updatePlan(plan.id, { paymentUrl: v || undefined })} placeholder="https://razorpay.me/..." /></Field>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <Toggle checked={!!plan.featured} onChange={(v) => updatePlan(plan.id, { featured: v })} label="Featured Plan" />
@@ -961,14 +942,474 @@ function MessagesTab({ showToast }: { showToast: (msg: string, type: "success" |
   );
 }
 
+// ─── Transformations Tab ───
+function TransformationsTab({ items, onChange }: { items: Transformation[]; onChange: (t: Transformation[]) => void }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const update = (id: string, u: Partial<Transformation>) => onChange(items.map((t) => t.id === id ? { ...t, ...u } : t));
+  const remove = (id: string) => { onChange(items.filter((t) => t.id !== id)); setEditing(null); };
+  const add = () => { const n: Transformation = { id: `tf-${Date.now()}`, title: "", beforeImage: "", afterImage: "" }; onChange([...items, n]); setEditing(n.id); };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-500 text-xs">Add your fitness transformation before/after photos. Empty section is hidden on the public page.</p>
+      {items.map((tf) => (
+        <div key={tf.id} className="glass rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5" onClick={() => setEditing(editing === tf.id ? null : tf.id)}>
+            <p className="text-white font-medium text-sm">{tf.title || "New Transformation"}</p>
+            <span className="text-gray-500 text-sm">{editing === tf.id ? "\u25B2" : "\u25BC"}</span>
+          </div>
+          {editing === tf.id && (
+            <div className="p-4 pt-0 border-t border-glass-border"><div className="pt-4">
+              <Field label="Title"><Input value={tf.title} onChange={(v) => update(tf.id, { title: v })} placeholder="6-Month Transformation" /></Field>
+              <Field label="Description"><TextArea value={tf.description || ""} onChange={(v) => update(tf.id, { description: v || undefined })} placeholder="How you achieved this..." rows={2} /></Field>
+              <Field label="Duration"><Input value={tf.duration || ""} onChange={(v) => update(tf.id, { duration: v || undefined })} placeholder="6 months" /></Field>
+              <div className="grid sm:grid-cols-2 gap-x-6">
+                <ImageUpload value={tf.beforeImage} onChange={(v) => update(tf.id, { beforeImage: v })} label="Before Photo" />
+                <ImageUpload value={tf.afterImage} onChange={(v) => update(tf.id, { afterImage: v })} label="After Photo" />
+              </div>
+              <button onClick={() => remove(tf.id)} className="text-red-400 text-sm hover:text-red-300 mt-2">Delete</button>
+            </div></div>
+          )}
+        </div>
+      ))}
+      <button onClick={add} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Transformation</button>
+    </div>
+  );
+}
+
+// ─── Discount Codes Tab ───
+function DiscountsTab({ codes, onChange }: { codes: DiscountCode[]; onChange: (c: DiscountCode[]) => void }) {
+  const update = (id: string, u: Partial<DiscountCode>) => onChange(codes.map((c) => c.id === id ? { ...c, ...u } : c));
+  const remove = (id: string) => onChange(codes.filter((c) => c.id !== id));
+  const add = () => onChange([...codes, { id: `dc-${Date.now()}`, code: "", description: "", active: true }]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-500 text-xs">Active discount codes show as a rotating banner on the public page. No active codes = banner hidden.</p>
+      {codes.map((dc) => (
+        <div key={dc.id} className="glass rounded-2xl p-4">
+          <div className="grid sm:grid-cols-2 gap-x-6">
+            <Field label="Code"><Input value={dc.code} onChange={(v) => update(dc.id, { code: v })} placeholder="STEELX10" /></Field>
+            <Field label="Platform (optional)"><Input value={dc.platform || ""} onChange={(v) => update(dc.id, { platform: v || undefined })} placeholder="Lyfta, Myntra..." /></Field>
+          </div>
+          <Field label="Description"><Input value={dc.description} onChange={(v) => update(dc.id, { description: v })} placeholder="Get 10% off on all plans" /></Field>
+          <Field label="Expires (optional)"><Input value={dc.expiresAt || ""} onChange={(v) => update(dc.id, { expiresAt: v || undefined })} placeholder="2026-04-30" type="date" /></Field>
+          <div className="flex items-center justify-between">
+            <Toggle checked={dc.active} onChange={(v) => update(dc.id, { active: v })} label="Active" />
+            <button onClick={() => remove(dc.id)} className="text-red-400 text-sm hover:text-red-300">Delete</button>
+          </div>
+        </div>
+      ))}
+      <button onClick={add} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Discount Code</button>
+    </div>
+  );
+}
+
+// ─── FAQ Tab ───
+function FAQTab({ items, onChange }: { items: FAQItem[]; onChange: (f: FAQItem[]) => void }) {
+  const update = (id: string, u: Partial<FAQItem>) => onChange(items.map((f) => f.id === id ? { ...f, ...u } : f));
+  const remove = (id: string) => onChange(items.filter((f) => f.id !== id));
+  const add = () => onChange([...items, { id: `faq-${Date.now()}`, question: "", answer: "" }]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-500 text-xs">Common questions visitors might ask. Empty = hidden on public page.</p>
+      {items.map((faq, idx) => (
+        <div key={faq.id} className="glass rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-neon font-bold text-sm">Q{idx + 1}</span>
+            <button onClick={() => remove(faq.id)} className="text-red-400 text-xs hover:text-red-300 ml-auto">Delete</button>
+          </div>
+          <Field label="Question"><Input value={faq.question} onChange={(v) => update(faq.id, { question: v })} placeholder="What protein do you use?" /></Field>
+          <Field label="Answer"><TextArea value={faq.answer} onChange={(v) => update(faq.id, { answer: v })} placeholder="I use Optimum Nutrition Gold Standard..." rows={3} /></Field>
+        </div>
+      ))}
+      <button onClick={add} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add FAQ</button>
+    </div>
+  );
+}
+
+// ─── Achievements Tab ───
+function AchievementsTab({ items, onChange }: { items: Achievement[]; onChange: (a: Achievement[]) => void }) {
+  const update = (id: string, u: Partial<Achievement>) => onChange(items.map((a) => a.id === id ? { ...a, ...u } : a));
+  const remove = (id: string) => onChange(items.filter((a) => a.id !== id));
+  const add = () => onChange([...items, { id: `ach-${Date.now()}`, label: "", value: "", icon: "" }]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-500 text-xs">Stats that show in an animated strip on the public page. E.g., &quot;3+ Years Lifting&quot;, &quot;2 Half Marathons&quot;.</p>
+      {items.map((ach) => (
+        <div key={ach.id} className="glass rounded-2xl p-4">
+          <div className="grid sm:grid-cols-3 gap-x-6">
+            <Field label="Icon (emoji)"><Input value={ach.icon || ""} onChange={(v) => update(ach.id, { icon: v || undefined })} placeholder="💪" /></Field>
+            <Field label="Value"><Input value={ach.value} onChange={(v) => update(ach.id, { value: v })} placeholder="3+" /></Field>
+            <Field label="Label"><Input value={ach.label} onChange={(v) => update(ach.id, { label: v })} placeholder="Years Lifting" /></Field>
+          </div>
+          <button onClick={() => remove(ach.id)} className="text-red-400 text-xs hover:text-red-300 mt-1">Delete</button>
+        </div>
+      ))}
+      <button onClick={add} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Achievement</button>
+    </div>
+  );
+}
+
+// ─── Schedule Tab ───
+const SCHEDULE_TYPES = [
+  { value: "collab", label: "Collaboration" },
+  { value: "coaching", label: "Coaching" },
+  { value: "content", label: "Content Creation" },
+  { value: "other", label: "Other" },
+];
+
+function ScheduleTab({ items, onChange }: { items: ScheduleSlot[]; onChange: (s: ScheduleSlot[]) => void }) {
+  const update = (id: string, u: Partial<ScheduleSlot>) => onChange(items.map((s) => s.id === id ? { ...s, ...u } : s));
+  const remove = (id: string) => onChange(items.filter((s) => s.id !== id));
+  const add = () => onChange([...items, { id: `sch-${Date.now()}`, title: "", availability: "", type: "collab" }]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-500 text-xs">Show your availability for collabs, coaching, etc. Empty = hidden.</p>
+      {items.map((slot) => (
+        <div key={slot.id} className="glass rounded-2xl p-4">
+          <div className="grid sm:grid-cols-2 gap-x-6">
+            <Field label="Title"><Input value={slot.title} onChange={(v) => update(slot.id, { title: v })} placeholder="Brand Collaborations" /></Field>
+            <Field label="Type">
+              <select value={slot.type} onChange={(e) => update(slot.id, { type: e.target.value as ScheduleSlot["type"] })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
+                {SCHEDULE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Availability"><Input value={slot.availability} onChange={(v) => update(slot.id, { availability: v })} placeholder="Mon-Fri 10am-6pm IST" /></Field>
+          <Field label="Description (optional)"><TextArea value={slot.description || ""} onChange={(v) => update(slot.id, { description: v || undefined })} placeholder="What this includes..." rows={2} /></Field>
+          <button onClick={() => remove(slot.id)} className="text-red-400 text-xs hover:text-red-300 mt-1">Delete</button>
+        </div>
+      ))}
+      <button onClick={add} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add Schedule Slot</button>
+    </div>
+  );
+}
+
+// ─── Social Feed Tab ───
+function SocialFeedTab({ config, onChange, newsletterEnabled, onNewsletterChange }: {
+  config: SocialFeedConfig; onChange: (c: SocialFeedConfig) => void;
+  newsletterEnabled: boolean; onNewsletterChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Social Feed</h3>
+        <p className="text-gray-500 text-xs mb-4">Enter your usernames to show your latest content. Leave empty to hide the section.</p>
+        <Field label="Instagram Username"><Input value={config.instagramUsername || ""} onChange={(v) => onChange({ ...config, instagramUsername: v || undefined })} placeholder="steelx_fitness" /></Field>
+        <Field label="YouTube Channel ID or Username"><Input value={config.youtubeChannelId || ""} onChange={(v) => onChange({ ...config, youtubeChannelId: v || undefined })} placeholder="@SteelXFitness or UCxxxxxxx" /></Field>
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Newsletter</h3>
+        <p className="text-gray-500 text-xs mb-4">Show email signup form on the public page. Subscribers are stored and viewable in the Analytics tab.</p>
+        <Toggle checked={newsletterEnabled} onChange={onNewsletterChange} label="Enable Newsletter Signup" />
+      </div>
+    </div>
+  );
+}
+
+// ─── SEO Tab ───
+function SEOTab({ seo, onChange, consultation, onConsultationChange, tip, onTipChange }: {
+  seo: SEOSettings; onChange: (s: SEOSettings) => void;
+  consultation: ConsultationConfig; onConsultationChange: (c: ConsultationConfig) => void;
+  tip: TipConfig; onTipChange: (t: TipConfig) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">SEO Settings</h3>
+        <p className="text-gray-500 text-xs mb-4">Customize how your page appears in Google and social media previews.</p>
+        <Field label="Page Title"><Input value={seo.title || ""} onChange={(v) => onChange({ ...seo, title: v || undefined })} placeholder="SteelX — Hybrid Athlete" /></Field>
+        <Field label="Meta Description"><TextArea value={seo.description || ""} onChange={(v) => onChange({ ...seo, description: v || undefined })} placeholder="Follow my fitness journey..." rows={2} /></Field>
+        <Field label="Keywords (comma-separated)"><Input value={seo.keywords || ""} onChange={(v) => onChange({ ...seo, keywords: v || undefined })} placeholder="fitness, hybrid athlete, gym, running" /></Field>
+        <ImageUpload value={seo.ogImage || ""} onChange={(v) => onChange({ ...seo, ogImage: v || undefined })} label="Social Preview Image (OG Image)" />
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Consultation / Booking</h3>
+        <p className="text-gray-500 text-xs mb-4">Add a booking section for 1-on-1 coaching. Leave empty to hide.</p>
+        <Field label="Section Title"><Input value={consultation.title || ""} onChange={(v) => onConsultationChange({ ...consultation, title: v || undefined })} placeholder="Book a 1-on-1 Session" /></Field>
+        <Field label="Description"><TextArea value={consultation.description || ""} onChange={(v) => onConsultationChange({ ...consultation, description: v || undefined })} placeholder="Get personalized coaching..." rows={2} /></Field>
+        <Field label="Booking URL (Calendly, Cal.com, etc.)"><Input value={consultation.bookingUrl || ""} onChange={(v) => onConsultationChange({ ...consultation, bookingUrl: v || undefined })} placeholder="https://calendly.com/steelx" /></Field>
+        <div className="grid sm:grid-cols-2 gap-x-6">
+          <PriceInput value={consultation.price} currency={consultation.currency || "₹"} onChange={(v) => onConsultationChange({ ...consultation, price: v })} onCurrencyChange={(v) => onConsultationChange({ ...consultation, currency: v })} />
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Tip / Support Me</h3>
+        <p className="text-gray-500 text-xs mb-4">Let visitors support you. Leave empty to hide.</p>
+        <Field label="Section Title"><Input value={tip.title || ""} onChange={(v) => onTipChange({ ...tip, title: v || undefined })} placeholder="Support My Journey" /></Field>
+        <Field label="Description"><TextArea value={tip.description || ""} onChange={(v) => onTipChange({ ...tip, description: v || undefined })} placeholder="If my content helps you..." rows={2} /></Field>
+        <Field label="UPI ID (optional)"><Input value={tip.upiId || ""} onChange={(v) => onTipChange({ ...tip, upiId: v || undefined })} placeholder="steelx@upi" /></Field>
+        <Field label="Payment Link (Buy Me a Coffee, Ko-fi, etc.)"><Input value={tip.paymentUrl || ""} onChange={(v) => onTipChange({ ...tip, paymentUrl: v || undefined })} placeholder="https://buymeacoffee.com/steelx" /></Field>
+      </div>
+
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Custom Domain</h3>
+        <p className="text-gray-500 text-xs mb-4">To use a custom domain:</p>
+        <ol className="text-gray-400 text-sm space-y-2 list-decimal list-inside">
+          <li>Go to your Vercel project → Settings → Domains</li>
+          <li>Add your domain (e.g., steelx.fit)</li>
+          <li>Update DNS: Add a CNAME record pointing to <code className="text-neon-cyan bg-dark-700 px-1.5 py-0.5 rounded">cname.vercel-dns.com</code></li>
+          <li>Wait for SSL certificate (automatic, usually &lt;5 min)</li>
+          <li>Your site is now live at your custom domain!</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section Visibility Tab ───
+const SECTION_KEYS: { key: keyof SectionVisibility; label: string; description: string }[] = [
+  { key: "apps", label: "Training Apps", description: "Your recommended fitness apps" },
+  { key: "gear", label: "Shop My Gear", description: "Product recommendations" },
+  { key: "plans", label: "Workout Plans", description: "Your training programs" },
+  { key: "transformations", label: "Transformations", description: "Before/after photos" },
+  { key: "achievements", label: "Achievements", description: "Stats strip" },
+  { key: "discountBanner", label: "Discount Banner", description: "Rotating promo codes" },
+  { key: "faq", label: "FAQ", description: "Frequently asked questions" },
+  { key: "schedule", label: "Schedule / Availability", description: "Your availability" },
+  { key: "socialFeed", label: "Social Feed", description: "Instagram/YouTube embed" },
+  { key: "newsletter", label: "Newsletter", description: "Email signup form" },
+  { key: "comparison", label: "Product Comparison", description: "Compare products side-by-side" },
+  { key: "contact", label: "Connect With Me", description: "Contact form + socials" },
+  { key: "consultation", label: "Consultation / Booking", description: "1-on-1 coaching" },
+  { key: "tip", label: "Tip / Support", description: "Support/donation section" },
+];
+
+function VisibilityTab({ visibility, onChange }: { visibility: SectionVisibility; onChange: (v: SectionVisibility) => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-gray-500 text-xs">Control which sections appear on the public page. Sections with no content are auto-hidden regardless of this setting.</p>
+      <div className="glass rounded-2xl p-6 space-y-4">
+        {SECTION_KEYS.map(({ key, label, description }) => (
+          <div key={key} className="flex items-center justify-between">
+            <div>
+              <p className="text-white text-sm font-medium">{label}</p>
+              <p className="text-gray-500 text-[11px]">{description}</p>
+            </div>
+            <Toggle checked={visibility[key] !== false} onChange={(v) => onChange({ ...visibility, [key]: v })} label="" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Analytics Tab ───
+interface AnalyticsData {
+  pageViews: number;
+  productClicks: Record<string, number>;
+  linkClicks: Record<string, number>;
+  contactSubmissions: number;
+  newsletterSignups: number;
+  dailyViews: Record<string, number>;
+}
+
+interface NewsletterSub { email: string; subscribedAt: string; }
+
+function AnalyticsTab() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [subs, setSubs] = useState<NewsletterSub[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/analytics").then((r) => r.json()),
+      fetch("/api/newsletter").then((r) => r.json()),
+    ]).then(([a, s]) => {
+      setData(a);
+      setSubs(Array.isArray(s) ? s : []);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-gray-500 text-center py-8">Loading analytics...</div>;
+  if (!data) return <div className="text-gray-500 text-center py-8">No analytics data yet.</div>;
+
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
+  });
+  const maxViews = Math.max(...last7.map((d) => data.dailyViews[d] || 0), 1);
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Page Views", value: data.pageViews, color: "text-neon" },
+          { label: "Product Clicks", value: Object.values(data.productClicks).reduce((a, b) => a + b, 0), color: "text-orange-400" },
+          { label: "Messages", value: data.contactSubmissions, color: "text-purple-400" },
+          { label: "Subscribers", value: data.newsletterSignups, color: "text-cyan-400" },
+        ].map((stat) => (
+          <div key={stat.label} className="glass rounded-xl p-4 text-center">
+            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value.toLocaleString()}</p>
+            <p className="text-gray-500 text-xs mt-1">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 7-Day Chart */}
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-sm font-bold text-white mb-4">Page Views — Last 7 Days</h3>
+        <div className="flex items-end gap-1 h-32">
+          {last7.map((day) => {
+            const views = data.dailyViews[day] || 0;
+            const height = Math.max((views / maxViews) * 100, 4);
+            return (
+              <div key={day} className="flex-1 flex flex-col items-center gap-1">
+                <span className="text-[10px] text-gray-400">{views}</span>
+                <div className="w-full bg-neon/80 rounded-t" style={{ height: `${height}%` }} />
+                <span className="text-[9px] text-gray-500">{day.slice(5)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Top Products */}
+      {Object.keys(data.productClicks).length > 0 && (
+        <div className="glass rounded-2xl p-6">
+          <h3 className="text-sm font-bold text-white mb-3">Top Product Clicks</h3>
+          <div className="space-y-2">
+            {Object.entries(data.productClicks).sort(([, a], [, b]) => b - a).slice(0, 10).map(([name, clicks]) => (
+              <div key={name} className="flex items-center justify-between text-sm">
+                <span className="text-gray-300 truncate">{name}</span>
+                <span className="text-neon font-medium">{clicks}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Newsletter Subscribers */}
+      {subs.length > 0 && (
+        <div className="glass rounded-2xl p-6">
+          <h3 className="text-sm font-bold text-white mb-3">Newsletter Subscribers ({subs.length})</h3>
+          <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            {subs.map((sub) => (
+              <div key={sub.email} className="flex items-center justify-between text-sm">
+                <span className="text-gray-300">{sub.email}</span>
+                <span className="text-gray-500 text-xs">{new Date(sub.subscribedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Language Tab ───
+const LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "hi", name: "Hindi" },
+  { code: "te", name: "Telugu" },
+  { code: "ta", name: "Tamil" },
+  { code: "kn", name: "Kannada" },
+  { code: "ml", name: "Malayalam" },
+  { code: "mr", name: "Marathi" },
+  { code: "bn", name: "Bengali" },
+  { code: "gu", name: "Gujarati" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "pt", name: "Portuguese" },
+  { code: "ar", name: "Arabic" },
+  { code: "ja", name: "Japanese" },
+  { code: "zh", name: "Chinese" },
+];
+
+const TRANSLATABLE_KEYS = [
+  "heroTagline", "heroBio", "trainWithMe", "shopMyGear", "connectWithMe",
+  "myTrainingApps", "shopMyGearTitle", "workoutPlans", "faqTitle", "contactTitle",
+];
+
+function LanguageTab({ config, onChange }: { config: LanguageConfig; onChange: (c: LanguageConfig) => void }) {
+  const [editingLang, setEditingLang] = useState<string | null>(null);
+
+  const toggleLang = (code: string) => {
+    if (code === config.defaultLang) return;
+    const avail = config.available.includes(code) ? config.available.filter((l) => l !== code) : [...config.available, code];
+    const translations = { ...config.translations };
+    if (!avail.includes(code)) delete translations[code];
+    onChange({ ...config, available: avail, translations });
+  };
+
+  const updateTranslation = (lang: string, key: string, value: string) => {
+    const translations = { ...config.translations, [lang]: { ...config.translations[lang], [key]: value } };
+    onChange({ ...config, translations });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="glass rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-2">Multi-Language</h3>
+        <p className="text-gray-500 text-xs mb-4">Enable languages and provide translations for section titles and key text. Default language is always available.</p>
+        <Field label="Default Language">
+          <select value={config.defaultLang} onChange={(e) => onChange({ ...config, defaultLang: e.target.value, available: [...new Set([e.target.value, ...config.available])] })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
+            {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+          </select>
+        </Field>
+
+        <h4 className="text-sm font-medium text-gray-400 mt-4 mb-2">Available Languages</h4>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {LANGUAGES.map((l) => (
+            <button key={l.code} onClick={() => toggleLang(l.code)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${config.available.includes(l.code) ? "bg-neon text-dark-900" : "glass text-gray-400 hover:text-white"} ${l.code === config.defaultLang ? "ring-2 ring-neon/50" : ""}`}>
+              {l.name} {l.code === config.defaultLang && "(default)"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Translations */}
+      {config.available.filter((l) => l !== config.defaultLang).map((lang) => {
+        const langName = LANGUAGES.find((l) => l.code === lang)?.name || lang;
+        return (
+          <div key={lang} className="glass rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5" onClick={() => setEditingLang(editingLang === lang ? null : lang)}>
+              <p className="text-white font-medium text-sm">{langName} Translations</p>
+              <span className="text-gray-500 text-sm">{editingLang === lang ? "\u25B2" : "\u25BC"}</span>
+            </div>
+            {editingLang === lang && (
+              <div className="p-4 pt-0 border-t border-glass-border"><div className="pt-4">
+                {TRANSLATABLE_KEYS.map((key) => (
+                  <Field key={key} label={key}>
+                    <Input value={config.translations[lang]?.[key] || ""} onChange={(v) => updateTranslation(lang, key, v)} placeholder={`${key} in ${langName}`} />
+                  </Field>
+                ))}
+              </div></div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───
 const TABS = [
   { id: "creator", label: "Profile" },
   { id: "apps", label: "Apps" },
   { id: "gear", label: "Gear" },
   { id: "plans", label: "Plans" },
+  { id: "transformations", label: "Transforms" },
+  { id: "achievements", label: "Stats" },
+  { id: "discounts", label: "Discounts" },
+  { id: "faq", label: "FAQ" },
+  { id: "schedule", label: "Schedule" },
   { id: "contacts", label: "Contact" },
+  { id: "social", label: "Social" },
+  { id: "seo", label: "SEO & More" },
+  { id: "visibility", label: "Sections" },
+  { id: "language", label: "Language" },
   { id: "messages", label: "Messages" },
+  { id: "analytics", label: "Analytics" },
   { id: "security", label: "Security" },
 ] as const;
 
@@ -1067,8 +1508,18 @@ export default function AdminPage() {
           />
         )}
         {activeTab === "plans" && <PlansTab plans={data.workoutPlans || []} onChange={(workoutPlans) => setData({ ...data, workoutPlans })} />}
+        {activeTab === "transformations" && <TransformationsTab items={data.transformations || []} onChange={(transformations) => setData({ ...data, transformations })} />}
+        {activeTab === "achievements" && <AchievementsTab items={data.achievements || []} onChange={(achievements) => setData({ ...data, achievements })} />}
+        {activeTab === "discounts" && <DiscountsTab codes={data.discountCodes || []} onChange={(discountCodes) => setData({ ...data, discountCodes })} />}
+        {activeTab === "faq" && <FAQTab items={data.faq || []} onChange={(faq) => setData({ ...data, faq })} />}
+        {activeTab === "schedule" && <ScheduleTab items={data.schedule || []} onChange={(schedule) => setData({ ...data, schedule })} />}
         {activeTab === "contacts" && <ContactsTab contacts={data.contacts} onChange={(contacts) => setData({ ...data, contacts })} />}
+        {activeTab === "social" && <SocialFeedTab config={data.socialFeed || {}} onChange={(socialFeed) => setData({ ...data, socialFeed })} newsletterEnabled={data.newsletterEnabled ?? false} onNewsletterChange={(newsletterEnabled) => setData({ ...data, newsletterEnabled })} />}
+        {activeTab === "seo" && <SEOTab seo={data.seo || {}} onChange={(seo) => setData({ ...data, seo })} consultation={data.consultation || {}} onConsultationChange={(consultation) => setData({ ...data, consultation })} tip={data.tip || {}} onTipChange={(tip) => setData({ ...data, tip })} />}
+        {activeTab === "visibility" && <VisibilityTab visibility={data.sectionVisibility || {}} onChange={(sectionVisibility) => setData({ ...data, sectionVisibility })} />}
+        {activeTab === "language" && <LanguageTab config={data.language || { defaultLang: "en", available: ["en"], translations: {} }} onChange={(language) => setData({ ...data, language })} />}
         {activeTab === "messages" && <MessagesTab showToast={showToast} />}
+        {activeTab === "analytics" && <AnalyticsTab />}
         {activeTab === "security" && <SecurityTab showToast={showToast} />}
       </div>
 

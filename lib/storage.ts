@@ -6,7 +6,12 @@ import {
   contacts as defaultContacts,
   workoutPlans as defaultWorkoutPlans,
 } from "@/data/storefrontData";
-import type { Creator, App, Product, ContactInfo, WorkoutPlan, ContactMessage } from "@/data/storefrontData";
+import type {
+  Creator, App, Product, ContactInfo, WorkoutPlan, ContactMessage,
+  Transformation, DiscountCode, FAQItem, Achievement, ScheduleSlot,
+  SocialFeedConfig, SEOSettings, ConsultationConfig, TipConfig,
+  SectionVisibility, LanguageConfig,
+} from "@/data/storefrontData";
 
 export interface StorefrontData {
   creator: Creator;
@@ -16,6 +21,18 @@ export interface StorefrontData {
   currency: string;
   contacts: ContactInfo;
   workoutPlans: WorkoutPlan[];
+  transformations: Transformation[];
+  discountCodes: DiscountCode[];
+  faq: FAQItem[];
+  achievements: Achievement[];
+  schedule: ScheduleSlot[];
+  socialFeed: SocialFeedConfig;
+  seo: SEOSettings;
+  consultation: ConsultationConfig;
+  tip: TipConfig;
+  sectionVisibility: SectionVisibility;
+  language: LanguageConfig;
+  newsletterEnabled: boolean;
 }
 
 const DEFAULT_DATA: StorefrontData = {
@@ -26,6 +43,18 @@ const DEFAULT_DATA: StorefrontData = {
   currency: "\u20B9",
   contacts: defaultContacts,
   workoutPlans: defaultWorkoutPlans,
+  transformations: [],
+  discountCodes: [],
+  faq: [],
+  achievements: [],
+  schedule: [],
+  socialFeed: {},
+  seo: {},
+  consultation: {},
+  tip: {},
+  sectionVisibility: {},
+  language: { defaultLang: "en", available: ["en"], translations: {} },
+  newsletterEnabled: false,
 };
 
 function getRedis(): Redis | null {
@@ -62,26 +91,32 @@ function migrateData(raw: any): StorefrontData {
   }
 
   // Ensure contacts exists
-  if (!data.contacts) {
-    data.contacts = DEFAULT_DATA.contacts;
-  }
-  if (!data.contacts.socials) {
-    data.contacts.socials = [];
-  }
+  if (!data.contacts) data.contacts = DEFAULT_DATA.contacts;
+  if (!data.contacts.socials) data.contacts.socials = [];
 
   // Ensure currency exists
-  if (!data.currency) {
-    data.currency = DEFAULT_DATA.currency;
-  }
+  if (!data.currency) data.currency = DEFAULT_DATA.currency;
 
   // Ensure creator has new fields
   if (!data.creator.adminTitle) data.creator.adminTitle = "SX";
   if (data.creator.footerText === undefined) data.creator.footerText = "";
 
   // Ensure workoutPlans exists
-  if (!data.workoutPlans) {
-    data.workoutPlans = DEFAULT_DATA.workoutPlans;
-  }
+  if (!data.workoutPlans) data.workoutPlans = DEFAULT_DATA.workoutPlans;
+
+  // Ensure new collections exist
+  if (!data.transformations) data.transformations = [];
+  if (!data.discountCodes) data.discountCodes = [];
+  if (!data.faq) data.faq = [];
+  if (!data.achievements) data.achievements = [];
+  if (!data.schedule) data.schedule = [];
+  if (!data.socialFeed) data.socialFeed = {};
+  if (!data.seo) data.seo = {};
+  if (!data.consultation) data.consultation = {};
+  if (!data.tip) data.tip = {};
+  if (!data.sectionVisibility) data.sectionVisibility = {};
+  if (!data.language) data.language = { defaultLang: "en", available: ["en"], translations: {} };
+  if (data.newsletterEnabled === undefined) data.newsletterEnabled = false;
 
   return data as StorefrontData;
 }
@@ -141,7 +176,6 @@ export async function getMessages(): Promise<ContactMessage[]> {
       return [];
     }
   }
-  // Local fallback
   try {
     const fs = await import("fs");
     const path = await import("path");
@@ -155,7 +189,7 @@ export async function getMessages(): Promise<ContactMessage[]> {
 
 export async function saveMessage(msg: ContactMessage): Promise<void> {
   const messages = await getMessages();
-  messages.unshift(msg); // newest first
+  messages.unshift(msg);
   const redis = getRedis();
   if (redis) {
     await redis.set("contact-messages", messages);
@@ -193,4 +227,99 @@ export async function markMessageRead(id: string): Promise<void> {
   const path = await import("path");
   const filePath = path.join(process.cwd(), "data", "messages.json");
   fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
+}
+
+// ─── Newsletter Subscribers ───
+
+export interface NewsletterSubscriber {
+  email: string;
+  subscribedAt: string;
+}
+
+export async function getSubscribers(): Promise<NewsletterSubscriber[]> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const subs = await redis.get<NewsletterSubscriber[]>("newsletter-subscribers");
+      return subs || [];
+    } catch { return []; }
+  }
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const raw = fs.readFileSync(path.join(process.cwd(), "data", "subscribers.json"), "utf-8");
+    return JSON.parse(raw);
+  } catch { return []; }
+}
+
+export async function addSubscriber(email: string): Promise<boolean> {
+  const subs = await getSubscribers();
+  if (subs.some((s) => s.email.toLowerCase() === email.toLowerCase())) return false;
+  subs.push({ email, subscribedAt: new Date().toISOString() });
+  const redis = getRedis();
+  if (redis) { await redis.set("newsletter-subscribers", subs); return true; }
+  const fs = await import("fs");
+  const path = await import("path");
+  fs.writeFileSync(path.join(process.cwd(), "data", "subscribers.json"), JSON.stringify(subs, null, 2));
+  return true;
+}
+
+// ─── Analytics ───
+
+export interface AnalyticsData {
+  pageViews: number;
+  productClicks: Record<string, number>;
+  linkClicks: Record<string, number>;
+  contactSubmissions: number;
+  newsletterSignups: number;
+  dailyViews: Record<string, number>; // date string → count
+}
+
+const DEFAULT_ANALYTICS: AnalyticsData = {
+  pageViews: 0,
+  productClicks: {},
+  linkClicks: {},
+  contactSubmissions: 0,
+  newsletterSignups: 0,
+  dailyViews: {},
+};
+
+export async function getAnalytics(): Promise<AnalyticsData> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const data = await redis.get<AnalyticsData>("analytics");
+      return data ? { ...DEFAULT_ANALYTICS, ...data } : DEFAULT_ANALYTICS;
+    } catch { return DEFAULT_ANALYTICS; }
+  }
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const raw = fs.readFileSync(path.join(process.cwd(), "data", "analytics.json"), "utf-8");
+    return { ...DEFAULT_ANALYTICS, ...JSON.parse(raw) };
+  } catch { return DEFAULT_ANALYTICS; }
+}
+
+export async function trackEvent(event: "pageView" | "productClick" | "linkClick" | "contactSubmission" | "newsletterSignup", id?: string): Promise<void> {
+  const analytics = await getAnalytics();
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (event === "pageView") {
+    analytics.pageViews++;
+    analytics.dailyViews[today] = (analytics.dailyViews[today] || 0) + 1;
+  } else if (event === "productClick" && id) {
+    analytics.productClicks[id] = (analytics.productClicks[id] || 0) + 1;
+  } else if (event === "linkClick" && id) {
+    analytics.linkClicks[id] = (analytics.linkClicks[id] || 0) + 1;
+  } else if (event === "contactSubmission") {
+    analytics.contactSubmissions++;
+  } else if (event === "newsletterSignup") {
+    analytics.newsletterSignups++;
+  }
+
+  const redis = getRedis();
+  if (redis) { await redis.set("analytics", analytics); return; }
+  const fs = await import("fs");
+  const path = await import("path");
+  fs.writeFileSync(path.join(process.cwd(), "data", "analytics.json"), JSON.stringify(analytics, null, 2));
 }

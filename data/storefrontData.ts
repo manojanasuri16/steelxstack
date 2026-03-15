@@ -1,3 +1,4 @@
+// ─── Core ───
 export interface Creator {
   name: string;
   tagline: string;
@@ -41,6 +42,9 @@ export interface Product {
   price?: number;
   currency?: string;
   featured?: boolean;
+  rating?: number;
+  review?: string;
+  reviewMedia?: string[]; // image/video URLs
 }
 
 export interface WorkoutPlan {
@@ -55,6 +59,9 @@ export interface WorkoutPlan {
   duration?: string;
   level?: string;
   featured?: boolean;
+  price?: number;
+  currency?: string;
+  paymentUrl?: string;
 }
 
 export interface SocialLink {
@@ -80,6 +87,99 @@ export interface ContactMessage {
   read?: boolean;
 }
 
+// ─── New Feature Interfaces ───
+
+export interface Transformation {
+  id: string;
+  title: string;
+  beforeImage: string;
+  afterImage: string;
+  description?: string;
+  duration?: string;
+}
+
+export interface DiscountCode {
+  id: string;
+  code: string;
+  description: string;
+  platform?: string;
+  expiresAt?: string;
+  active: boolean;
+}
+
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface Achievement {
+  id: string;
+  label: string;
+  value: string;
+  icon?: string;
+}
+
+export interface ScheduleSlot {
+  id: string;
+  title: string;
+  description?: string;
+  availability: string;
+  type: "collab" | "coaching" | "content" | "other";
+}
+
+export interface SocialFeedConfig {
+  instagramUsername?: string;
+  youtubeChannelId?: string;
+}
+
+export interface SEOSettings {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  keywords?: string;
+}
+
+export interface ConsultationConfig {
+  title?: string;
+  description?: string;
+  bookingUrl?: string;
+  price?: number;
+  currency?: string;
+}
+
+export interface TipConfig {
+  title?: string;
+  description?: string;
+  upiId?: string;
+  paymentUrl?: string;
+}
+
+export interface SectionVisibility {
+  apps?: boolean;
+  gear?: boolean;
+  plans?: boolean;
+  contact?: boolean;
+  transformations?: boolean;
+  faq?: boolean;
+  achievements?: boolean;
+  schedule?: boolean;
+  socialFeed?: boolean;
+  newsletter?: boolean;
+  comparison?: boolean;
+  discountBanner?: boolean;
+  consultation?: boolean;
+  tip?: boolean;
+}
+
+export interface LanguageConfig {
+  defaultLang: string;
+  available: string[];
+  translations: Record<string, Record<string, string>>;
+}
+
+// ─── Default Data ───
+
 export const creator: Creator = {
   name: "SteelX",
   tagline: "Hybrid Athlete | Lifting + Running",
@@ -97,8 +197,7 @@ export const apps: App[] = [
     id: "lyfta",
     name: "Lyfta",
     logo: "/logos/lyfta.svg",
-    description:
-      "My go-to lifting tracker. Every set, every rep — all logged here. Clean UI and great exercise library.",
+    description: "My go-to lifting tracker. Every set, every rep — all logged here. Clean UI and great exercise library.",
     profileUrl: "https://lyfta.app",
     affiliateUrl: "https://lyfta.app",
     promoCode: "STEELX10",
@@ -108,8 +207,7 @@ export const apps: App[] = [
     id: "runna",
     name: "Runna",
     logo: "/logos/runna.svg",
-    description:
-      "Personalized running plans that actually work. Helped me go from casual jogger to half-marathon finisher.",
+    description: "Personalized running plans that actually work. Helped me go from casual jogger to half-marathon finisher.",
     profileUrl: "https://runna.com",
     affiliateUrl: "https://runna.com",
   },
@@ -117,8 +215,7 @@ export const apps: App[] = [
     id: "strava",
     name: "Strava",
     logo: "/logos/strava.svg",
-    description:
-      "Where all my runs and rides live. Follow me for weekly activity updates and route shares.",
+    description: "Where all my runs and rides live. Follow me for weekly activity updates and route shares.",
     profileUrl: "https://strava.com",
   },
 ];

@@ -15,6 +15,17 @@ export default async function Home() {
       currency={data.currency}
       contacts={data.contacts}
       workoutPlans={data.workoutPlans}
+      transformations={data.transformations || []}
+      discountCodes={(data.discountCodes || []).filter((dc) => dc.active)}
+      faq={data.faq || []}
+      achievements={data.achievements || []}
+      schedule={data.schedule || []}
+      socialFeed={data.socialFeed || {}}
+      seo={data.seo || {}}
+      consultation={data.consultation || {}}
+      tip={data.tip || {}}
+      sectionVisibility={data.sectionVisibility || {}}
+      newsletterEnabled={data.newsletterEnabled ?? false}
     />
   );
 }
