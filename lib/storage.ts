@@ -10,7 +10,7 @@ import type {
   Creator, App, Product, ContactInfo, WorkoutPlan, ContactMessage,
   Transformation, DiscountCode, FAQItem, Achievement, ScheduleSlot,
   SocialFeedConfig, SEOSettings, ConsultationConfig, TipConfig,
-  SectionVisibility, LanguageConfig,
+  SectionVisibility,
 } from "@/data/storefrontData";
 
 export interface StorefrontData {
@@ -31,7 +31,6 @@ export interface StorefrontData {
   consultation: ConsultationConfig;
   tip: TipConfig;
   sectionVisibility: SectionVisibility;
-  language: LanguageConfig;
   newsletterEnabled: boolean;
 }
 
@@ -53,7 +52,6 @@ const DEFAULT_DATA: StorefrontData = {
   consultation: {},
   tip: {},
   sectionVisibility: {},
-  language: { defaultLang: "en", available: ["en"], translations: {} },
   newsletterEnabled: false,
 };
 
@@ -131,7 +129,6 @@ function migrateData(raw: any): StorefrontData {
   if (!data.consultation) data.consultation = {};
   if (!data.tip) data.tip = {};
   if (!data.sectionVisibility) data.sectionVisibility = {};
-  if (!data.language) data.language = { defaultLang: "en", available: ["en"], translations: {} };
   if (data.newsletterEnabled === undefined) data.newsletterEnabled = false;
 
   return data as StorefrontData;

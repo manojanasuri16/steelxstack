@@ -26,7 +26,7 @@ import type {
   Creator, App, BuyLink, Product, SocialLink, ContactInfo, WorkoutPlan,
   Transformation, TransformationPlan, DiscountCode, FAQItem, Achievement, ScheduleSlot,
   SocialFeedConfig, SEOSettings, ConsultationConfig, TipConfig,
-  SectionVisibility, LanguageConfig,
+  SectionVisibility,
 } from "@/data/storefrontData";
 
 interface StorefrontData {
@@ -47,7 +47,6 @@ interface StorefrontData {
   consultation: ConsultationConfig;
   tip: TipConfig;
   sectionVisibility: SectionVisibility;
-  language: LanguageConfig;
   newsletterEnabled: boolean;
 }
 
@@ -1373,93 +1372,6 @@ function AnalyticsTab() {
   );
 }
 
-// ─── Language Tab ───
-const LANGUAGES = [
-  { code: "en", name: "English" },
-  { code: "hi", name: "Hindi" },
-  { code: "te", name: "Telugu" },
-  { code: "ta", name: "Tamil" },
-  { code: "kn", name: "Kannada" },
-  { code: "ml", name: "Malayalam" },
-  { code: "mr", name: "Marathi" },
-  { code: "bn", name: "Bengali" },
-  { code: "gu", name: "Gujarati" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "pt", name: "Portuguese" },
-  { code: "ar", name: "Arabic" },
-  { code: "ja", name: "Japanese" },
-  { code: "zh", name: "Chinese" },
-];
-
-const TRANSLATABLE_KEYS = [
-  "heroTagline", "heroBio", "trainWithMe", "shopMyGear", "connectWithMe",
-  "myTrainingApps", "shopMyGearTitle", "workoutPlans", "faqTitle", "contactTitle",
-];
-
-function LanguageTab({ config, onChange }: { config: LanguageConfig; onChange: (c: LanguageConfig) => void }) {
-  const [editingLang, setEditingLang] = useState<string | null>(null);
-
-  const toggleLang = (code: string) => {
-    if (code === config.defaultLang) return;
-    const avail = config.available.includes(code) ? config.available.filter((l) => l !== code) : [...config.available, code];
-    const translations = { ...config.translations };
-    if (!avail.includes(code)) delete translations[code];
-    onChange({ ...config, available: avail, translations });
-  };
-
-  const updateTranslation = (lang: string, key: string, value: string) => {
-    const translations = { ...config.translations, [lang]: { ...config.translations[lang], [key]: value } };
-    onChange({ ...config, translations });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="glass rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-white mb-2">Multi-Language</h3>
-        <p className="text-gray-500 text-xs mb-4">Enable languages and provide translations for section titles and key text. Default language is always available.</p>
-        <Field label="Default Language">
-          <select value={config.defaultLang} onChange={(e) => onChange({ ...config, defaultLang: e.target.value, available: [...new Set([e.target.value, ...config.available])] })} className="w-full bg-dark-700 border border-glass-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon/50">
-            {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
-          </select>
-        </Field>
-
-        <h4 className="text-sm font-medium text-gray-400 mt-4 mb-2">Available Languages</h4>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {LANGUAGES.map((l) => (
-            <button key={l.code} onClick={() => toggleLang(l.code)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${config.available.includes(l.code) ? "bg-neon text-dark-900" : "glass text-gray-400 hover:text-white"} ${l.code === config.defaultLang ? "ring-2 ring-neon/50" : ""}`}>
-              {l.name} {l.code === config.defaultLang && "(default)"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Translations */}
-      {config.available.filter((l) => l !== config.defaultLang).map((lang) => {
-        const langName = LANGUAGES.find((l) => l.code === lang)?.name || lang;
-        return (
-          <div key={lang} className="glass rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5" onClick={() => setEditingLang(editingLang === lang ? null : lang)}>
-              <p className="text-white font-medium text-sm">{langName} Translations</p>
-              <span className="text-gray-500 text-sm">{editingLang === lang ? "\u25B2" : "\u25BC"}</span>
-            </div>
-            {editingLang === lang && (
-              <div className="p-4 pt-0 border-t border-glass-border"><div className="pt-4">
-                {TRANSLATABLE_KEYS.map((key) => (
-                  <Field key={key} label={key}>
-                    <Input value={config.translations[lang]?.[key] || ""} onChange={(v) => updateTranslation(lang, key, v)} placeholder={`${key} in ${langName}`} />
-                  </Field>
-                ))}
-              </div></div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ─── Main Admin Page ───
 const TABS = [
   { id: "creator", label: "Profile" },
@@ -1475,7 +1387,6 @@ const TABS = [
   { id: "social", label: "Social" },
   { id: "seo", label: "SEO & More" },
   { id: "visibility", label: "Sections" },
-  { id: "language", label: "Language" },
   { id: "messages", label: "Messages" },
   { id: "analytics", label: "Analytics" },
   { id: "security", label: "Security" },
@@ -1585,7 +1496,7 @@ export default function AdminPage() {
         {activeTab === "social" && <SocialFeedTab config={data.socialFeed || {}} onChange={(socialFeed) => setData({ ...data, socialFeed })} newsletterEnabled={data.newsletterEnabled ?? false} onNewsletterChange={(newsletterEnabled) => setData({ ...data, newsletterEnabled })} />}
         {activeTab === "seo" && <SEOTab seo={data.seo || {}} onChange={(seo) => setData({ ...data, seo })} consultation={data.consultation || {}} onConsultationChange={(consultation) => setData({ ...data, consultation })} tip={data.tip || {}} onTipChange={(tip) => setData({ ...data, tip })} />}
         {activeTab === "visibility" && <VisibilityTab visibility={data.sectionVisibility || {}} onChange={(sectionVisibility) => setData({ ...data, sectionVisibility })} />}
-        {activeTab === "language" && <LanguageTab config={data.language || { defaultLang: "en", available: ["en"], translations: {} }} onChange={(language) => setData({ ...data, language })} />}
+
         {activeTab === "messages" && <MessagesTab showToast={showToast} />}
         {activeTab === "analytics" && <AnalyticsTab />}
         {activeTab === "security" && <SecurityTab showToast={showToast} />}

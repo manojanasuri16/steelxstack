@@ -188,12 +188,6 @@ export interface SectionVisibility {
   tip?: boolean;
 }
 
-export interface LanguageConfig {
-  defaultLang: string;
-  available: string[];
-  translations: Record<string, Record<string, string>>;
-}
-
 // ─── Default Data ───
 
 export const creator: Creator = {
