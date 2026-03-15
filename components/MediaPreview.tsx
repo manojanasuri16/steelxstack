@@ -142,9 +142,21 @@ export default function MediaPreview({ url, open, onClose, title }: MediaPreview
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="w-full h-[85vh] bg-white rounded-lg overflow-hidden"
+                className="w-full max-w-4xl"
               >
-                <iframe src={url} className="w-full h-full" title={title || "PDF Preview"} />
+                {typeof window !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? (
+                  <div className="glass rounded-2xl p-8 text-center">
+                    <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    <p className="text-white mb-4">{title || "PDF Document"}</p>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="px-6 py-2 rounded-lg text-sm font-bold bg-neon text-dark-900 hover:brightness-110">
+                      Open PDF
+                    </a>
+                  </div>
+                ) : (
+                  <div className="h-[85vh] bg-white rounded-lg overflow-hidden">
+                    <iframe src={url} className="w-full h-full" title={title || "PDF Preview"} />
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -216,6 +228,18 @@ export function InlineFileViewer({ url, className = "" }: { url: string; classNa
     );
   }
   if (type === "pdf") {
+    const isMobile = typeof window !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+      return (
+        <div className={`bg-dark-700 rounded-lg p-6 text-center ${className}`}>
+          <svg className="w-10 h-10 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+          <p className="text-gray-300 text-sm mb-3">PDF Preview</p>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block px-5 py-2 rounded-lg text-sm font-bold bg-neon text-dark-900 hover:brightness-110">
+            Open PDF
+          </a>
+        </div>
+      );
+    }
     return (
       <div className={`bg-white rounded-lg overflow-hidden ${className}`} style={{ minHeight: 400 }}>
         <iframe src={url} className="w-full h-full" style={{ minHeight: 400 }} title="PDF Preview" />

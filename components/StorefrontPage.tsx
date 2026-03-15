@@ -132,21 +132,19 @@ function ClickableMedia({ url, alt, className = "", children }: { url: string; a
 
 // ─── Transformation Slider ───
 function TransformationCard({ tf, currency }: { tf: Transformation; currency: string }) {
-  const [sliderPos, setSliderPos] = useState(50);
-  const [mode, setMode] = useState<"image" | "video">("image");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-
   const isValid = (url?: string) => !!url && (url.startsWith("http") || url.startsWith("/uploads/"));
   const hasBeforeImg = isValid(tf.beforeImage);
   const hasAfterImg = isValid(tf.afterImage);
   const hasBeforeVid = isValid(tf.beforeVideo);
   const hasAfterVid = isValid(tf.afterVideo);
   const hasVideo = hasBeforeVid || hasAfterVid;
+  const hasImages = hasBeforeImg && hasAfterImg;
 
-  if (!hasBeforeImg && !hasBeforeVid) return null;
-  if (!hasAfterImg && !hasAfterVid) return null;
+  const [sliderPos, setSliderPos] = useState(50);
+  const [mode, setMode] = useState<"image" | "video">(hasImages ? "image" : "video");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
 
   const updatePos = (clientX: number) => {
     if (!containerRef.current) return;
@@ -158,7 +156,7 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass rounded-2xl overflow-hidden">
       {/* Image/Video toggle */}
-      {hasVideo && hasBeforeImg && (
+      {hasVideo && (hasBeforeImg || hasAfterImg) && (
         <div className="flex justify-center gap-2 p-3 pb-0">
           {(["image", "video"] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${mode === m ? "bg-neon text-dark-900" : "bg-dark-700 text-gray-400"}`}>{m === "image" ? "Photos" : "Videos"}</button>
@@ -187,7 +185,7 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
             </div>
           )}
         </div>
-      ) : hasBeforeImg && hasAfterImg ? (
+      ) : hasImages ? (
         <div ref={containerRef} className="relative aspect-[4/3] select-none cursor-col-resize overflow-hidden"
           onMouseDown={() => { dragging.current = true; }}
           onMouseMove={(e) => { if (dragging.current) updatePos(e.clientX); }}
@@ -210,9 +208,23 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
           </div>
           <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</div>
           <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</div>
-          {/* Tap before/after to preview full image */}
           <button onClick={(e) => { e.stopPropagation(); setPreviewUrl(tf.beforeImage); }} className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-1 rounded-full hover:bg-black/70">View Before</button>
           <button onClick={(e) => { e.stopPropagation(); setPreviewUrl(tf.afterImage); }} className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-1 rounded-full hover:bg-black/70">View After</button>
+        </div>
+      ) : (hasBeforeImg || hasAfterImg) ? (
+        <div className="grid grid-cols-2 gap-1 p-1">
+          {hasBeforeImg && (
+            <div className="relative cursor-pointer" onClick={() => setPreviewUrl(tf.beforeImage)}>
+              <img src={tf.beforeImage} alt="Before" className="w-full aspect-[4/3] object-cover rounded-lg" />
+              <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">Before</span>
+            </div>
+          )}
+          {hasAfterImg && (
+            <div className="relative cursor-pointer" onClick={() => setPreviewUrl(tf.afterImage)}>
+              <img src={tf.afterImage} alt="After" className="w-full aspect-[4/3] object-cover rounded-lg" />
+              <span className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full">After</span>
+            </div>
+          )}
         </div>
       ) : null}
 
