@@ -28,6 +28,7 @@ A comprehensive technical breakdown of the SteelX fitness creator storefront app
 20. [Admin Panel Branding](#20-admin-panel-branding)
 21. [Contact Form & Messages](#21-contact-form--messages)
 22. [Multi-Image Upload & Image Lightbox](#22-multi-image-upload--image-lightbox)
+23. [17-Feature Expansion](#23-17-feature-expansion)
 
 ---
 
@@ -834,3 +835,95 @@ Located at `components/ImageLightbox.tsx`. Full-screen image preview overlay:
 - `wornImage: "url"` → `wornImages: ["url"]`
 
 The old `image` and `wornImage` fields are kept in sync (set to first item in array) for backward compatibility.
+
+---
+
+## 23. 17-Feature Expansion
+
+A massive feature expansion adding 17 new capabilities. All features follow the pattern: if no content is added, the section is automatically hidden on the public page. Admin can also manually hide sections via the "Sections" tab.
+
+### New Data Interfaces
+
+- `Transformation` — before/after photos with slider comparison
+- `DiscountCode` — promo codes with platform, expiry, active flag
+- `FAQItem` — question + answer pairs
+- `Achievement` — stats strip (icon, value, label)
+- `ScheduleSlot` — availability entries (type, title, availability text)
+- `SocialFeedConfig` — Instagram username, YouTube channel ID
+- `SEOSettings` — custom title, description, keywords, OG image
+- `ConsultationConfig` — booking URL, price, description
+- `TipConfig` — UPI ID, payment URL
+- `SectionVisibility` — per-section show/hide toggles
+- `LanguageConfig` — multi-language with translatable keys
+- Product additions: `rating`, `review`, `reviewMedia[]` (images/videos)
+- WorkoutPlan additions: `price`, `currency`, `paymentUrl`
+
+### New Admin Tabs (17 total tabs)
+
+Profile, Apps, Gear, Plans, Transforms, Stats, Discounts, FAQ, Schedule, Contact, Social, SEO & More, Sections, Language, Messages, Analytics, Security
+
+### Public Page Sections (all auto-hide when empty)
+
+1. **Discount Banner** — rotating promo codes at top, auto-cycles every 4 seconds
+2. **Achievements Strip** — animated stat counters below hero
+3. **Transformation Gallery** — before/after slider (drag to compare)
+4. **Product Reviews/Ratings** — star ratings + review text + media (images/videos) per product
+5. **Product Comparison** — select 2-3 products for side-by-side table
+6. **FAQ Accordion** — expandable questions with smooth animation
+7. **Schedule / Availability** — availability cards by type (collab, coaching, etc.)
+8. **Social Feed** — links to Instagram/YouTube with branded cards
+9. **Newsletter Signup** — email collection form, stored in Redis
+10. **Consultation Booking** — price display + booking URL (Calendly, Cal.com)
+11. **Tip / Support Me** — UPI ID display + payment link
+
+### API Routes
+
+- `POST /api/analytics` — track events (pageView, productClick, linkClick, etc.)
+- `GET /api/analytics` — fetch analytics data (admin only)
+- `POST /api/newsletter` — subscribe email
+- `GET /api/newsletter` — list subscribers (admin only)
+
+### Analytics Dashboard (Admin)
+
+- Summary cards: page views, product clicks, messages, subscribers
+- 7-day page views bar chart
+- Top product clicks ranking
+- Newsletter subscriber list with dates
+
+### SEO
+
+Custom meta title, description, keywords, and OG image configurable from admin. Applied in `app/layout.tsx` via `generateMetadata()`. Twitter card support included.
+
+### PWA (Progressive Web App)
+
+- `public/manifest.json` — app name, colors, icons
+- `public/sw.js` — service worker with network-first cache strategy
+- Registered on page load in `AnalyticsTracker` component
+- Users can "Add to Home Screen" on mobile for native-app feel
+
+### Multi-Language
+
+Infrastructure for i18n with:
+- Default language selection
+- Enable/disable languages from a curated list
+- Per-language translations for section titles and key UI text
+- Translation editing in admin panel
+
+### Section Visibility
+
+Admin "Sections" tab with toggles for every public section. Logic: `sectionVisibility[key] !== false && hasContent`. Sections auto-hide when empty regardless of toggle.
+
+### Custom Domain Guide
+
+Instructions in the "SEO & More" tab explaining how to:
+1. Add domain in Vercel
+2. Set CNAME DNS record
+3. Wait for SSL auto-provisioning
+
+### Paid Workout Plans
+
+Plans can now have `price`, `currency`, and `paymentUrl`. If price is set, it shows on the plan card. Clicking opens the payment URL (Razorpay, Stripe, etc.).
+
+### Data Storage
+
+All new data is part of the main `storefront-data` Redis document. Newsletter subscribers use a separate `newsletter-subscribers` key. Analytics use a separate `analytics` key. Migration in `migrateData()` ensures all new fields default correctly for existing installations.
