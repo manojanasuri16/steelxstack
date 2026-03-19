@@ -13,7 +13,6 @@ import type {
   SectionVisibility,
 } from "@/data/storefrontData";
 import type { StravaActivity } from "@/lib/strava";
-import { formatDistance, formatDuration, formatPace, getActivityIcon, getActivityColor } from "@/lib/strava";
 
 function getDomainIcon(url: string): string {
   try { return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`; }
@@ -48,6 +47,38 @@ function ThemeToggle({ isDark, onToggle, hasDiscountBanner }: { isDark: boolean;
         <svg className="w-5 h-5 text-indigo-400 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
       )}
     </button>
+  );
+}
+
+// ─── Strava Embeds ───
+function StravaEmbeds({ activityIds }: { activityIds: number[] }) {
+  useEffect(() => {
+    // Load Strava embed script
+    if (activityIds.length === 0) return;
+    const existing = document.querySelector('script[src="https://strava-embeds.com/embed.js"]');
+    if (existing) existing.remove();
+    const script = document.createElement("script");
+    script.src = "https://strava-embeds.com/embed.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { script.remove(); };
+  }, [activityIds]);
+
+  if (activityIds.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      {activityIds.map((id) => (
+        <div
+          key={id}
+          className="strava-embed-placeholder"
+          data-embed-type="activity"
+          data-embed-id={String(id)}
+          data-style="standard"
+          data-from-embed="false"
+        />
+      ))}
+    </div>
   );
 }
 
@@ -740,64 +771,7 @@ export default function StorefrontPage({
       {/* Strava Activities */}
       {showStrava && (
         <SectionWrapper id="strava" title="Recent Activity" subtitle="My latest workouts tracked on Strava.">
-          <div className="space-y-3">
-            {stravaActivities.map((act, i) => (
-              <motion.div
-                key={act.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className="glass rounded-xl p-4 hover:border-neon/20 transition-colors"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl shrink-0 mt-0.5">{getActivityIcon(act.sport_type || act.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="font-semibold text-white truncate">{act.name}</h4>
-                      <span className="text-xs text-gray-500 shrink-0">
-                        {new Date(act.start_date_local).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm">
-                      {act.distance > 0 && (
-                        <span className="text-gray-400"><span className="text-white font-medium">{formatDistance(act.distance)}</span></span>
-                      )}
-                      <span className="text-gray-400"><span className="text-white font-medium">{formatDuration(act.moving_time)}</span></span>
-                      {act.distance > 0 && act.average_speed > 0 && (
-                        <span className="text-gray-400"><span className="text-white font-medium">{formatPace(act.average_speed, act.sport_type || act.type)}</span></span>
-                      )}
-                      {act.total_elevation_gain > 0 && (
-                        <span className="text-gray-400"><span className="text-white font-medium">{Math.round(act.total_elevation_gain)}m</span> elev</span>
-                      )}
-                      {act.average_heartrate && (
-                        <span className="text-gray-400"><span className="text-red-400 font-medium">♥ {Math.round(act.average_heartrate)}</span> bpm</span>
-                      )}
-                      {act.calories && act.calories > 0 && (
-                        <span className="text-gray-400"><span className="text-orange-400 font-medium">{act.calories}</span> cal</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2 h-0.5 rounded-full bg-dark-700 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: "100%" }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1, delay: i * 0.05 + 0.3 }}
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: getActivityColor(act.sport_type || act.type) }}
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-          <div className="mt-4 text-center">
-            <a href="https://www.strava.com/athletes/106718826" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#FC4C02] transition-colors">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-              View on Strava
-            </a>
-          </div>
+          <StravaEmbeds activityIds={stravaActivities.map((a) => a.id)} />
         </SectionWrapper>
       )}
 
