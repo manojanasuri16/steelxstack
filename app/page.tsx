@@ -1,14 +1,15 @@
 import { getData } from "@/lib/storage";
-import { getStravaActivities } from "@/lib/strava";
+import { getStravaActivities, filterTodayOrYesterday } from "@/lib/strava";
 import StorefrontPage from "@/components/StorefrontPage";
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const [data, stravaActivities] = await Promise.all([
+  const [data, allStravaActivities] = await Promise.all([
     getData(),
-    getStravaActivities(10),
+    getStravaActivities(20),
   ]);
+  const stravaActivities = filterTodayOrYesterday(allStravaActivities);
 
   return (
     <StorefrontPage

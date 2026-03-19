@@ -52,9 +52,13 @@ function ThemeToggle({ isDark, onToggle, hasDiscountBanner }: { isDark: boolean;
 
 // ─── Strava Embeds ───
 function StravaEmbeds({ activityIds }: { activityIds: number[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? activityIds : activityIds.slice(0, 1);
+  const hasMore = activityIds.length > 1;
+
   useEffect(() => {
-    // Load Strava embed script
-    if (activityIds.length === 0) return;
+    if (visible.length === 0) return;
+    // Re-inject script whenever visible set changes so new embeds render
     const existing = document.querySelector('script[src="https://strava-embeds.com/embed.js"]');
     if (existing) existing.remove();
     const script = document.createElement("script");
@@ -62,13 +66,13 @@ function StravaEmbeds({ activityIds }: { activityIds: number[] }) {
     script.async = true;
     document.body.appendChild(script);
     return () => { script.remove(); };
-  }, [activityIds]);
+  }, [visible.length]);
 
   if (activityIds.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {activityIds.map((id) => (
+      {visible.map((id) => (
         <div
           key={id}
           className="strava-embed-placeholder"
@@ -78,6 +82,14 @@ function StravaEmbeds({ activityIds }: { activityIds: number[] }) {
           data-from-embed="false"
         />
       ))}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full py-2.5 rounded-xl glass text-sm font-medium text-gray-400 hover:text-neon hover:border-neon/30 transition-colors"
+        >
+          {expanded ? "Show Less" : `Show ${activityIds.length - 1} More`}
+        </button>
+      )}
     </div>
   );
 }
@@ -768,13 +780,6 @@ export default function StorefrontPage({
       {/* Achievements Strip */}
       {showAchievements && <AchievementsStrip items={achievements} />}
 
-      {/* Strava Activities */}
-      {showStrava && (
-        <SectionWrapper id="strava" title="Recent Activity" subtitle="My latest workouts tracked on Strava.">
-          <StravaEmbeds activityIds={stravaActivities.map((a) => a.id)} />
-        </SectionWrapper>
-      )}
-
       {/* Fitness Apps */}
       {showApps && (
         <SectionWrapper id="apps" title="My Training Apps" subtitle="The apps I use every single day to train, track, and improve.">
@@ -802,6 +807,13 @@ export default function StorefrontPage({
           <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
             {transformations.map((tf) => <TransformationCard key={tf.id} tf={tf} currency={currency} />)}
           </div>
+        </SectionWrapper>
+      )}
+
+      {/* Strava Activities */}
+      {showStrava && (
+        <SectionWrapper id="strava" title="Today's Activity" subtitle="Latest workouts tracked on Strava.">
+          <StravaEmbeds activityIds={stravaActivities.map((a) => a.id)} />
         </SectionWrapper>
       )}
 

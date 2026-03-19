@@ -82,6 +82,20 @@ export async function getStravaActivities(count = 10): Promise<StravaActivity[]>
   }
 }
 
+/** Return today's activities; if none, return yesterday's. */
+export function filterTodayOrYesterday(activities: StravaActivity[]): StravaActivity[] {
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  const todayActs = activities.filter((a) => a.start_date_local.slice(0, 10) === todayStr);
+  if (todayActs.length > 0) return todayActs;
+
+  return activities.filter((a) => a.start_date_local.slice(0, 10) === yesterdayStr);
+}
+
 // ─── Helpers ───
 
 export function formatDistance(meters: number): string {
