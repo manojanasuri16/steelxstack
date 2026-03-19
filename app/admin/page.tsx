@@ -208,56 +208,89 @@ function CreatorTab({ creator, onChange }: { creator: Creator; onChange: (c: Cre
 }
 
 // ─── Apps Tab ───
+function SortableAppItem({ app, editing, setEditing, updateApp, deleteApp }: {
+  app: App; editing: string | null; setEditing: (id: string | null) => void;
+  updateApp: (id: string, u: Partial<App>) => void; deleteApp: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: app.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : "auto" as const };
+
+  return (
+    <div ref={setNodeRef} style={style} className="glass rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === app.id ? null : app.id)}>
+        <div className="flex items-center gap-3">
+          <div {...attributes} {...listeners} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-1 text-gray-500 hover:text-white transition-colors" title="Drag to reorder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+          </div>
+          {app.logo && (app.logo.startsWith("http") || app.logo.startsWith("/uploads/")) ? (
+            <img src={app.logo} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
+          ) : (
+            <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-neon font-bold">{app.name?.charAt(0) || "?"}</div>
+          )}
+          <div>
+            <p className="text-white font-medium">{app.name || "New App"}</p>
+            <p className="text-gray-500 text-xs">{app.profileUrl || "No URL set"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {app.highlight && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Recommended</span>}
+          <span className="text-gray-500 text-sm">{editing === app.id ? "\u25B2" : "\u25BC"}</span>
+        </div>
+      </div>
+      {editing === app.id && (
+        <div className="p-4 pt-0 border-t border-glass-border">
+          <div className="pt-4">
+            <div className="flex gap-2 items-end mb-4">
+              <div className="flex-1"><Field label="Profile / Website URL"><Input value={app.profileUrl} onChange={(v) => updateApp(app.id, { profileUrl: v })} placeholder="https://..." /></Field></div>
+              <div className="mb-4"><FetchButton url={app.profileUrl} onFetched={(m) => updateApp(app.id, { name: m.title || app.name, description: m.description || app.description, logo: m.favicon || m.image || app.logo })} /></div>
+            </div>
+            <Field label="App Name"><Input value={app.name} onChange={(v) => updateApp(app.id, { name: v })} /></Field>
+            <ImageUpload value={app.logo} onChange={(v) => updateApp(app.id, { logo: v })} label="App Logo / Icon" />
+            <Field label="Description"><TextArea value={app.description} onChange={(v) => updateApp(app.id, { description: v })} /></Field>
+            <div className="grid sm:grid-cols-2 gap-x-6">
+              <Field label="Affiliate URL (optional)"><Input value={app.affiliateUrl || ""} onChange={(v) => updateApp(app.id, { affiliateUrl: v || undefined })} /></Field>
+              <Field label="Promo Code (optional)"><Input value={app.promoCode || ""} onChange={(v) => updateApp(app.id, { promoCode: v || undefined })} /></Field>
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <Toggle checked={!!app.highlight} onChange={(v) => updateApp(app.id, { highlight: v })} label="Show as Recommended" />
+              <button onClick={() => deleteApp(app.id)} className="text-red-400 text-sm hover:text-red-300">Delete App</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AppsTab({ apps, onChange }: { apps: App[]; onChange: (a: App[]) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const updateApp = (id: string, u: Partial<App>) => onChange(apps.map((a) => (a.id === id ? { ...a, ...u } : a)));
   const deleteApp = (id: string) => { onChange(apps.filter((a) => a.id !== id)); setEditing(null); };
   const addApp = () => { const n: App = { id: `app-${Date.now()}`, name: "", logo: "", description: "", profileUrl: "" }; onChange([...apps, n]); setEditing(n.id); };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = apps.findIndex((a) => a.id === active.id);
+      const newIndex = apps.findIndex((a) => a.id === over.id);
+      onChange(arrayMove(apps, oldIndex, newIndex));
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {apps.map((app) => (
-        <div key={app.id} className="glass rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setEditing(editing === app.id ? null : app.id)}>
-            <div className="flex items-center gap-3">
-              {app.logo && (app.logo.startsWith("http") || app.logo.startsWith("/uploads/")) ? (
-                <img src={app.logo} alt="" className="w-10 h-10 rounded-lg object-cover bg-dark-700" />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center text-neon font-bold">{app.name?.charAt(0) || "?"}</div>
-              )}
-              <div>
-                <p className="text-white font-medium">{app.name || "New App"}</p>
-                <p className="text-gray-500 text-xs">{app.profileUrl || "No URL set"}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {app.highlight && <span className="text-[10px] bg-neon/20 text-neon px-2 py-0.5 rounded-full">Recommended</span>}
-              <span className="text-gray-500 text-sm">{editing === app.id ? "\u25B2" : "\u25BC"}</span>
-            </div>
-          </div>
-          {editing === app.id && (
-            <div className="p-4 pt-0 border-t border-glass-border">
-              <div className="pt-4">
-                <div className="flex gap-2 items-end mb-4">
-                  <div className="flex-1"><Field label="Profile / Website URL"><Input value={app.profileUrl} onChange={(v) => updateApp(app.id, { profileUrl: v })} placeholder="https://..." /></Field></div>
-                  <div className="mb-4"><FetchButton url={app.profileUrl} onFetched={(m) => updateApp(app.id, { name: m.title || app.name, description: m.description || app.description, logo: m.favicon || m.image || app.logo })} /></div>
-                </div>
-                <Field label="App Name"><Input value={app.name} onChange={(v) => updateApp(app.id, { name: v })} /></Field>
-                <ImageUpload value={app.logo} onChange={(v) => updateApp(app.id, { logo: v })} label="App Logo / Icon" />
-                <Field label="Description"><TextArea value={app.description} onChange={(v) => updateApp(app.id, { description: v })} /></Field>
-                <div className="grid sm:grid-cols-2 gap-x-6">
-                  <Field label="Affiliate URL (optional)"><Input value={app.affiliateUrl || ""} onChange={(v) => updateApp(app.id, { affiliateUrl: v || undefined })} /></Field>
-                  <Field label="Promo Code (optional)"><Input value={app.promoCode || ""} onChange={(v) => updateApp(app.id, { promoCode: v || undefined })} /></Field>
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                  <Toggle checked={!!app.highlight} onChange={(v) => updateApp(app.id, { highlight: v })} label="Show as Recommended" />
-                  <button onClick={() => deleteApp(app.id)} className="text-red-400 text-sm hover:text-red-300">Delete App</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={apps.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+          {apps.map((app) => (
+            <SortableAppItem key={app.id} app={app} editing={editing} setEditing={setEditing} updateApp={updateApp} deleteApp={deleteApp} />
+          ))}
+        </SortableContext>
+      </DndContext>
       <button onClick={addApp} className="w-full py-3 rounded-xl border-2 border-dashed border-glass-border text-gray-400 hover:text-neon hover:border-neon/30 transition-colors text-sm font-medium">+ Add New App</button>
     </div>
   );
