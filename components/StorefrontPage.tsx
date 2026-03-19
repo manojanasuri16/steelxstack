@@ -40,11 +40,11 @@ function getSocialLabel(url: string): string {
 // ─── Theme Toggle ───
 function ThemeToggle({ isDark, onToggle, hasDiscountBanner }: { isDark: boolean; onToggle: () => void; hasDiscountBanner?: boolean }) {
   return (
-    <button onClick={onToggle} className={`fixed right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all group ${hasDiscountBanner ? "top-12" : "top-4"}`} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+    <button onClick={onToggle} className={`fixed right-4 z-50 w-9 h-9 rounded-full glass-card flex items-center justify-center hover:border-neon/20 transition-all group ${hasDiscountBanner ? "top-12" : "top-4"}`} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
       {isDark ? (
-        <svg className="w-5 h-5 text-yellow-400 group-hover:rotate-45 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+        <svg className="w-4 h-4 text-yellow-400 group-hover:rotate-45 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
       ) : (
-        <svg className="w-5 h-5 text-indigo-400 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+        <svg className="w-4 h-4 text-indigo-400 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
       )}
     </button>
   );
@@ -71,11 +71,11 @@ function StravaEmbeds({ activityIds }: { activityIds: number[] }) {
   if (activityIds.length === 0) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-2xl mx-auto">
       {visible.map((id) => (
         <div
           key={id}
-          className="strava-embed-placeholder"
+          className="strava-embed-placeholder rounded-xl overflow-hidden"
           data-embed-type="activity"
           data-embed-id={String(id)}
           data-style="standard"
@@ -85,7 +85,7 @@ function StravaEmbeds({ activityIds }: { activityIds: number[] }) {
       {hasMore && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full py-2.5 rounded-xl glass text-sm font-medium text-gray-400 hover:text-neon hover:border-neon/30 transition-colors"
+          className="w-full py-2.5 rounded-xl glass-card text-sm font-medium text-gray-400 hover:text-neon hover:border-neon/20 transition-all"
         >
           {expanded ? "Show Less" : `Show ${activityIds.length - 1} More`}
         </button>
@@ -118,9 +118,9 @@ function DiscountBanner({ codes }: { codes: DiscountCode[] }) {
   );
 
   return (
-    <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-neon text-dark-900 text-center py-2 px-4 text-sm font-medium relative overflow-hidden">
+    <motion.div initial={{ y: -40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.4, ease: "easeOut" }} className="bg-neon text-dark-900 text-center py-2 px-4 text-sm font-medium relative overflow-hidden">
       {dc.link ? (
-        <a href={dc.link} target="_blank" rel="noopener noreferrer" className="block cursor-pointer">{inner}</a>
+        <a href={dc.link} target="_blank" rel="noopener noreferrer" className="block cursor-pointer hover:opacity-80 transition-opacity">{inner}</a>
       ) : inner}
     </motion.div>
   );
@@ -130,10 +130,10 @@ function DiscountBanner({ codes }: { codes: DiscountCode[] }) {
 function AchievementsStrip({ items }: { items: Achievement[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="py-6 overflow-hidden">
-      <div className="flex justify-center gap-4 sm:gap-8 flex-wrap px-4">
+    <div className="py-8 sm:py-10 overflow-hidden">
+      <div className="flex justify-center gap-6 sm:gap-10 flex-wrap px-4">
         {items.map((ach, i) => (
-          <AnimatedStat key={ach.id} ach={ach} delay={i * 0.1} />
+          <AnimatedStat key={ach.id} ach={ach} delay={i * 0.08} />
         ))}
       </div>
     </div>
@@ -144,10 +144,10 @@ function AnimatedStat({ ach, delay }: { ach: Achievement; delay: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
   return (
-    <motion.div ref={ref} initial={{ opacity: 0, scale: 0.8 }} animate={inView ? { opacity: 1, scale: 1 } : {}} transition={{ duration: 0.5, delay }} className="text-center min-w-[80px]">
-      {ach.icon && <div className="text-2xl mb-1">{ach.icon}</div>}
-      <div className="text-2xl sm:text-3xl font-extrabold text-neon">{ach.value}</div>
-      <div className="text-gray-400 text-xs sm:text-sm mt-0.5">{ach.label}</div>
+    <motion.div ref={ref} initial={{ opacity: 0, y: 12 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.4, delay, ease: "easeOut" }} className="text-center min-w-[80px]">
+      {ach.icon && <div className="text-2xl mb-1.5">{ach.icon}</div>}
+      <div className="text-2xl sm:text-3xl font-extrabold gradient-text">{ach.value}</div>
+      <div className="text-gray-500 text-[11px] sm:text-xs mt-1 tracking-wide">{ach.label}</div>
     </motion.div>
   );
 }
@@ -206,7 +206,7 @@ function TransformationCard({ tf, currency }: { tf: Transformation; currency: st
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass rounded-2xl overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass-card rounded-2xl overflow-hidden">
       {/* Image/Video toggle */}
       {hasVideo && (hasBeforeImg || hasAfterImg) && (
         <div className="flex justify-center gap-2 p-3 pb-0">
@@ -358,12 +358,12 @@ function PlanCard({ plan, index }: { plan: WorkoutPlan; index: number }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.35, delay: index * 0.08 }}
-      className="glass rounded-2xl overflow-hidden flex flex-col relative group">
-      {plan.featured && <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</div>}
-      {isPaid && <div className="absolute top-3 right-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full">{plan.currency || "₹"}{plan.price!.toLocaleString()}</div>}
-      {!isPaid && <div className="absolute top-3 right-3 z-10 bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">Free</div>}
+      initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.35, delay: index * 0.06, ease: "easeOut" }}
+      className="glass-card rounded-2xl overflow-hidden flex flex-col relative group">
+      {plan.featured && <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Featured</div>}
+      {isPaid && <div className="absolute top-3 right-3 z-10 bg-neon text-dark-900 text-[9px] font-bold px-2 py-0.5 rounded-full">{plan.currency || "₹"}{plan.price!.toLocaleString()}</div>}
+      {!isPaid && <div className="absolute top-3 right-3 z-10 bg-green-500/15 text-green-400 text-[9px] font-bold px-2 py-0.5 rounded-full">Free</div>}
       {hasImage ? (
         <div className="aspect-[16/9] bg-dark-700 overflow-hidden cursor-pointer" onClick={() => setPreviewUrl(plan.image)}>
           <img src={plan.image} alt={plan.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
@@ -439,7 +439,7 @@ function ContactForm() {
 
   if (status === "sent") {
     return (
-      <div className="glass rounded-2xl p-6 text-center">
+      <div className="glass-card rounded-2xl p-6 text-center">
         <div className="w-12 h-12 rounded-full bg-neon/20 flex items-center justify-center mx-auto mb-3">
           <svg className="w-6 h-6 text-neon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
         </div>
@@ -451,8 +451,8 @@ function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 space-y-3">
-      <h4 className="text-white font-semibold text-sm mb-1">Send Me a Message</h4>
+    <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-5 space-y-3">
+      <h4 className="text-white font-semibold text-sm mb-1 tracking-tight">Send Me a Message</h4>
       <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your Name" required className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 transition-colors" />
       <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Your Email" required className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon/50 transition-colors" />
       <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full bg-dark-700 border border-glass-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-neon/50 transition-colors">
@@ -483,9 +483,9 @@ function NewsletterSignup() {
   };
 
   return (
-    <div className="glass rounded-2xl p-6 text-center max-w-md mx-auto">
-      <h4 className="text-white font-bold mb-1">Stay Updated</h4>
-      <p className="text-gray-400 text-xs mb-4">Get workout tips, gear drops, and exclusive content.</p>
+    <div className="glass-card rounded-2xl p-6 text-center max-w-md mx-auto">
+      <h4 className="text-white font-bold mb-1 tracking-tight">Stay Updated</h4>
+      <p className="text-gray-500 text-xs mb-4">Get workout tips, gear drops, and exclusive content.</p>
       {status === "done" ? (
         <p className="text-neon text-sm font-medium">You&apos;re subscribed!</p>
       ) : status === "exists" ? (
@@ -509,7 +509,7 @@ function FAQSection({ items }: { items: FAQItem[] }) {
   return (
     <div className="max-w-2xl mx-auto space-y-3">
       {items.map((faq) => (
-        <motion.div key={faq.id} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass rounded-xl overflow-hidden">
+        <motion.div key={faq.id} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass-card rounded-xl overflow-hidden">
           <button onClick={() => setOpen(open === faq.id ? null : faq.id)} className="w-full text-left p-4 flex items-center justify-between gap-3">
             <span className="text-white text-sm font-medium">{faq.question}</span>
             <motion.span animate={{ rotate: open === faq.id ? 180 : 0 }} className="text-gray-500 shrink-0">
@@ -571,7 +571,7 @@ function ProductComparison({ products, currency, categories }: { products: Produ
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
             {categoryProducts.map((p) => (
               <button key={p.id} onClick={() => toggleProduct(p.id)}
-                className={`glass rounded-xl overflow-hidden text-left transition-all ${selected.includes(p.id) ? "ring-2 ring-neon" : "hover:bg-white/5"}`}>
+                className={`glass-card rounded-xl overflow-hidden text-left transition-all ${selected.includes(p.id) ? "ring-2 ring-neon border-neon/20" : ""}`}>
                 <div className="aspect-square bg-dark-700 relative overflow-hidden">
                   {isValid(p.image) ? (
                     <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
@@ -595,7 +595,7 @@ function ProductComparison({ products, currency, categories }: { products: Produ
           {/* Comparison table */}
           <AnimatePresence>
             {compareProducts.length >= 2 && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="glass rounded-2xl overflow-hidden">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="glass-card rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -746,32 +746,32 @@ export default function StorefrontPage({
 
       {/* HERO */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900" />
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-1/4 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-neon/20 rounded-full blur-[100px] sm:blur-[120px] animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-56 sm:w-80 h-56 sm:h-80 bg-neon-cyan/15 rounded-full blur-[80px] sm:blur-[100px] animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-b from-dark-900 via-dark-800 to-dark-900" />
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-1/3 left-1/4 w-64 sm:w-80 h-64 sm:h-80 bg-neon/25 rounded-full blur-[120px]" />
+          <div className="absolute bottom-1/3 right-1/4 w-48 sm:w-64 h-48 sm:h-64 bg-neon-cyan/20 rounded-full blur-[100px]" />
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="relative z-10 text-center max-w-2xl w-full">
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }} className="relative z-10 text-center max-w-2xl w-full">
           {creator.profileImage && creator.profileImage !== "/profile.jpg" && (creator.profileImage.startsWith("http") || creator.profileImage.startsWith("/uploads/")) ? (
             <div className="mx-auto mb-5 sm:mb-6">
-              <img src={creator.profileImage} alt={creator.name} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-neon/50 neon-glow mx-auto" />
+              <img src={creator.profileImage} alt={creator.name} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-neon/40 neon-glow mx-auto ring-1 ring-white/5" />
             </div>
           ) : (
-            <div className="mx-auto mb-5 sm:mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-dark-700 border-2 border-neon/50 flex items-center justify-center neon-glow">
-              <span className="text-3xl sm:text-4xl font-bold text-neon">{creator.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>
+            <div className="mx-auto mb-5 sm:mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-dark-700 border-2 border-neon/40 flex items-center justify-center neon-glow ring-1 ring-white/5">
+              <span className="text-3xl sm:text-4xl font-bold gradient-text">{creator.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>
             </div>
           )}
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-2 sm:mb-3 tracking-tight">{creator.name}</h1>
-          <p className="text-neon font-semibold text-xs sm:text-base uppercase tracking-widest mb-3 sm:mb-4">{creator.tagline}</p>
-          <p className="text-gray-400 text-sm sm:text-lg leading-relaxed mb-6 sm:mb-8 max-w-lg mx-auto px-2">{creator.bio}</p>
+          <p className="text-neon font-semibold text-[11px] sm:text-sm uppercase tracking-[0.2em] mb-3 sm:mb-4">{creator.tagline}</p>
+          <p className="text-gray-400 text-sm sm:text-base leading-relaxed mb-7 sm:mb-9 max-w-lg mx-auto px-2">{creator.bio}</p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center px-4 sm:px-0">
             <a href={creator.ctaPrimary.href} className="px-8 py-3 sm:py-3.5 rounded-xl font-bold text-dark-900 bg-neon hover:brightness-110 transition-all text-sm sm:text-base neon-glow">{creator.ctaPrimary.label}</a>
-            <a href={creator.ctaSecondary.href} className="px-8 py-3 sm:py-3.5 rounded-xl font-bold text-white border border-glass-border hover:bg-white/10 transition-colors text-sm sm:text-base">{creator.ctaSecondary.label}</a>
+            <a href={creator.ctaSecondary.href} className="px-8 py-3 sm:py-3.5 rounded-xl font-bold text-white border border-glass-border hover:border-white/20 hover:bg-white/5 transition-all text-sm sm:text-base">{creator.ctaSecondary.label}</a>
             {creator.ctaTertiary && (
-              <a href={creator.ctaTertiary.href} className="px-8 py-3 sm:py-3.5 rounded-xl font-bold text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/10 transition-colors text-sm sm:text-base">{creator.ctaTertiary.label}</a>
+              <a href={creator.ctaTertiary.href} className="px-8 py-3 sm:py-3.5 rounded-xl font-bold text-neon-cyan border border-neon-cyan/20 hover:border-neon-cyan/40 hover:bg-neon-cyan/5 transition-all text-sm sm:text-base">{creator.ctaTertiary.label}</a>
             )}
           </div>
         </motion.div>
@@ -832,11 +832,11 @@ export default function StorefrontPage({
           </motion.div>
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-8">
-              <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">&larr; Prev</button>
+              <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-2 rounded-lg text-xs font-medium glass text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">&larr; Prev</button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${currentPage === page ? "bg-neon text-dark-900" : "glass text-gray-300 hover:text-white"}`}>{page}</button>
               ))}
-              <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-2 rounded-lg text-sm font-medium glass text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next &rarr;</button>
+              <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-2 rounded-lg text-xs font-medium glass text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next &rarr;</button>
             </div>
           )}
         </SectionWrapper>
@@ -861,7 +861,7 @@ export default function StorefrontPage({
         <SectionWrapper id="schedule" title="Availability" subtitle="Open for collaborations and coaching.">
           <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
             {schedule.map((slot) => (
-              <motion.div key={slot.id} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass rounded-xl p-5">
+              <motion.div key={slot.id} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="glass-card rounded-xl p-5">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${slot.type === "collab" ? "bg-purple-500/20 text-purple-400" : slot.type === "coaching" ? "bg-green-500/20 text-green-400" : slot.type === "content" ? "bg-orange-500/20 text-orange-400" : "bg-blue-500/20 text-blue-400"}`}>{slot.type}</span>
                 <h4 className="text-white font-semibold text-sm mt-2">{slot.title}</h4>
                 <p className="text-neon text-xs font-medium mt-1">{slot.availability}</p>
@@ -877,7 +877,7 @@ export default function StorefrontPage({
         <SectionWrapper id="social" title="Follow My Journey" subtitle="Latest content from my socials.">
           <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
             {socialFeed.instagramUsername && (
-              <a href={`https://instagram.com/${socialFeed.instagramUsername}`} target="_blank" rel="noopener noreferrer" className="glass rounded-xl p-6 flex items-center gap-4 hover:bg-white/5 transition-colors group">
+              <a href={`https://instagram.com/${socialFeed.instagramUsername}`} target="_blank" rel="noopener noreferrer" className="glass-card rounded-xl p-5 flex items-center gap-4 hover:border-neon/15 transition-all group">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shrink-0">
                   <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
                 </div>
@@ -888,7 +888,7 @@ export default function StorefrontPage({
               </a>
             )}
             {socialFeed.youtubeChannelId && (
-              <a href={`https://youtube.com/${socialFeed.youtubeChannelId.startsWith("@") ? socialFeed.youtubeChannelId : `channel/${socialFeed.youtubeChannelId}`}`} target="_blank" rel="noopener noreferrer" className="glass rounded-xl p-6 flex items-center gap-4 hover:bg-white/5 transition-colors group">
+              <a href={`https://youtube.com/${socialFeed.youtubeChannelId.startsWith("@") ? socialFeed.youtubeChannelId : `channel/${socialFeed.youtubeChannelId}`}`} target="_blank" rel="noopener noreferrer" className="glass-card rounded-xl p-5 flex items-center gap-4 hover:border-neon/15 transition-all group">
                 <div className="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center shrink-0">
                   <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                 </div>
@@ -930,7 +930,7 @@ export default function StorefrontPage({
         <SectionWrapper id="support" title={tip.title || "Support Me"} subtitle={tip.description || ""}>
           <div className="max-w-md mx-auto text-center space-y-4">
             {tip.upiId && (
-              <div className="glass rounded-xl p-4">
+              <div className="glass-card rounded-xl p-4">
                 <p className="text-gray-400 text-xs mb-2">UPI</p>
                 <p className="text-white font-mono text-sm select-all">{tip.upiId}</p>
               </div>
@@ -953,7 +953,7 @@ export default function StorefrontPage({
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.1 }} className="space-y-4">
               {(contacts.phone || contacts.email) && (
-                <div className="glass rounded-2xl p-5 space-y-3">
+                <div className="glass-card rounded-2xl p-5 space-y-3">
                   {contacts.phone && (
                     <a href={`tel:${contacts.phone}`} className="flex items-center gap-3 text-gray-300 hover:text-white transition-colors group">
                       <div className="w-10 h-10 rounded-xl bg-dark-700 flex items-center justify-center shrink-0 group-hover:bg-neon/10 transition-colors">
@@ -975,7 +975,7 @@ export default function StorefrontPage({
               {contacts.socials.length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
                   {contacts.socials.map((social) => (
-                    <a key={social.id} href={social.url} target="_blank" rel="noopener noreferrer" className="glass rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 transition-colors group">
+                    <a key={social.id} href={social.url} target="_blank" rel="noopener noreferrer" className="glass-card rounded-xl p-4 flex items-center gap-3 hover:border-neon/15 transition-all group">
                       <img src={social.icon && (social.icon.startsWith("http") || social.icon.startsWith("/uploads/")) ? social.icon : getDomainIcon(social.url)} alt="" className="w-6 h-6 rounded-sm shrink-0" />
                       <div className="min-w-0"><p className="text-white text-sm font-medium truncate">{social.label || getSocialLabel(social.url)}</p></div>
                     </a>
@@ -988,9 +988,10 @@ export default function StorefrontPage({
       )}
 
       {/* Footer */}
-      <footer className="py-8 sm:py-10 px-4 text-center border-t border-glass-border">
+      <footer className="py-10 sm:py-12 px-4 text-center">
+        <div className="section-divider mb-8" />
         {creator.footerText && <p className="text-gray-500 text-[11px] sm:text-xs leading-relaxed mb-3 max-w-lg mx-auto">{creator.footerText}</p>}
-        <p className="text-gray-500 text-xs sm:text-sm">&copy; {new Date().getFullYear()} {creator.name}. All rights reserved.</p>
+        <p className="text-gray-600 text-xs">&copy; {new Date().getFullYear()} {creator.name}</p>
       </footer>
     </main>
   );

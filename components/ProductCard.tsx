@@ -23,12 +23,12 @@ function formatPrice(price: number, currency: string): string {
 
 function getPlatformColor(platform: string): string {
   const p = platform.toLowerCase();
-  if (p.includes("amazon")) return "bg-orange-500/20 text-orange-400";
-  if (p.includes("flipkart")) return "bg-yellow-500/20 text-yellow-400";
-  if (p.includes("myntra")) return "bg-pink-500/20 text-pink-400";
-  if (p.includes("ajio")) return "bg-purple-500/20 text-purple-400";
-  if (p.includes("cult")) return "bg-red-500/20 text-red-400";
-  return "bg-blue-500/20 text-blue-400";
+  if (p.includes("amazon")) return "bg-orange-500/15 text-orange-400";
+  if (p.includes("flipkart")) return "bg-yellow-500/15 text-yellow-400";
+  if (p.includes("myntra")) return "bg-pink-500/15 text-pink-400";
+  if (p.includes("ajio")) return "bg-purple-500/15 text-purple-400";
+  if (p.includes("cult")) return "bg-red-500/15 text-red-400";
+  return "bg-blue-500/15 text-blue-400";
 }
 
 function isValid(url?: string): boolean {
@@ -41,7 +41,6 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Build image arrays for product and worn
   const productImages: string[] = product.images?.filter((u): u is string => isValid(u)) || (isValid(product.image) ? [product.image] : []);
   const wornImages: string[] = product.wornImages?.filter((u): u is string => isValid(u)) || (product.wornImage && isValid(product.wornImage) ? [product.wornImage] : []);
 
@@ -49,7 +48,6 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
   const hasProductImage = productImages.length > 0;
   const hasWornImage = wornImages.length > 0;
 
-  // For display, show first image of active set
   const displayImage = activeImages[0];
   const hasDisplayImage = !!displayImage;
   const singleLink = product.buyLinks.length === 1;
@@ -63,31 +61,28 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, margin: "-50px" }}
-        transition={{ duration: 0.35, delay: index * 0.06 }}
-        whileHover={{ y: -4, transition: { duration: 0.2 } }}
-        className="glass rounded-2xl overflow-hidden flex flex-col relative group"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.35, delay: index * 0.05, ease: "easeOut" }}
+        className="glass-card rounded-2xl overflow-hidden flex flex-col relative group"
       >
         {product.featured && (
-          <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <div className="absolute top-3 left-3 z-10 bg-neon text-dark-900 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
             Featured
           </div>
         )}
 
-        {/* Image Toggle Button */}
         {hasProductImage && hasWornImage && (
           <button
             onClick={() => setShowWorn(!showWorn)}
-            className="absolute top-3 right-3 z-10 bg-dark-900/70 backdrop-blur-sm text-[10px] font-medium px-2.5 py-1 rounded-full border border-glass-border hover:bg-dark-900/90 transition-colors shadow-sm"
+            className="absolute top-3 right-3 z-10 bg-dark-900/60 backdrop-blur-md text-[10px] font-medium px-2.5 py-1 rounded-full border border-white/10 hover:bg-dark-900/80 transition-colors"
             style={{ color: "#ffffff" }}
           >
             {showWorn ? "Product" : "On Me"}
           </button>
         )}
 
-        {/* Product Image — clickable */}
         <div
           className="aspect-square bg-dark-700 relative overflow-hidden cursor-pointer"
           onClick={() => openLightbox(0)}
@@ -96,20 +91,19 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
             <img
               src={displayImage}
               alt={product.name}
-              className="w-full h-full object-cover transition-opacity duration-300"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-4xl font-bold text-dark-600 group-hover:text-dark-700 transition-colors">
+            <div className="absolute inset-0 flex items-center justify-center bg-dark-700">
+              <span className="text-3xl font-bold text-dark-600">
                 {product.name.charAt(0)}
               </span>
             </div>
           )}
 
-          {/* Image count indicator */}
           {activeImages.length > 1 && (
-            <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
+            <div className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
               </svg>
@@ -117,10 +111,9 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
             </div>
           )}
 
-          {/* Tap to preview hint on hover */}
           {hasDisplayImage && (
-            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-              <div className="bg-black/60 backdrop-blur-sm text-white text-[11px] font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
+              <div className="bg-black/50 backdrop-blur-md text-white text-[11px] font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                 </svg>
@@ -131,16 +124,15 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
         </div>
 
         <div className="p-3 sm:p-4 flex flex-col flex-1">
-          <h3 className="text-xs sm:text-sm font-semibold text-white leading-tight mb-1 line-clamp-2">
+          <h3 className="text-xs sm:text-sm font-semibold text-white leading-snug mb-1.5 line-clamp-2">
             {product.name}
           </h3>
 
-          {/* Platform badges */}
           <div className="flex flex-wrap gap-1 mb-2">
             {product.buyLinks.map((link) => (
               <span
                 key={link.platform}
-                className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full ${getPlatformColor(link.platform)}`}
+                className={`text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${getPlatformColor(link.platform)}`}
               >
                 {link.platform}
               </span>
@@ -154,12 +146,11 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
           )}
 
           {product.price != null && product.price > 0 && (
-            <p className="text-neon font-bold text-base sm:text-lg mb-2">
+            <p className="text-neon font-bold text-base sm:text-lg mb-2 tracking-tight">
               {formatPrice(product.price, product.currency || currency)}
             </p>
           )}
 
-          {/* Buy Button */}
           {product.buyLinks.length > 0 && (
             <div className="relative mt-auto">
               {singleLink ? (
@@ -190,7 +181,7 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={() => setShowLinks(false)}
-                            className="flex items-center gap-2 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-b border-glass-border last:border-0"
+                            className="flex items-center gap-2 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors border-b border-glass-border last:border-0"
                           >
                             <img
                               src={`https://www.google.com/s2/favicons?domain=${new URL(link.url).hostname}&sz=32`}
@@ -210,7 +201,6 @@ export default function ProductCard({ product, index, currency }: ProductCardPro
         </div>
       </motion.div>
 
-      {/* Lightbox */}
       <ImageLightbox
         images={productImages}
         wornImages={wornImages}
