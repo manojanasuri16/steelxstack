@@ -119,6 +119,7 @@ export interface DiscountCode {
   code: string;
   description: string;
   platform?: string;
+  link?: string;
   expiresAt?: string;
   active: boolean;
 }

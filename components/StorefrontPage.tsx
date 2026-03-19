@@ -61,15 +61,22 @@ function DiscountBanner({ codes }: { codes: DiscountCode[] }) {
   if (codes.length === 0) return null;
   const dc = codes[current];
 
+  const inner = (
+    <AnimatePresence mode="wait">
+      <motion.div key={dc.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+        <span className="font-bold">{dc.code}</span>
+        {dc.description && <span className="ml-2">&mdash; {dc.description}</span>}
+        {dc.platform && <span className="ml-1 text-dark-900/70">on {dc.platform}</span>}
+        {dc.link && <span className="ml-2 underline underline-offset-2">Shop Now →</span>}
+      </motion.div>
+    </AnimatePresence>
+  );
+
   return (
     <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-neon text-dark-900 text-center py-2 px-4 text-sm font-medium relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        <motion.div key={dc.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
-          <span className="font-bold">{dc.code}</span>
-          {dc.description && <span className="ml-2">&mdash; {dc.description}</span>}
-          {dc.platform && <span className="ml-1 text-dark-900/70">on {dc.platform}</span>}
-        </motion.div>
-      </AnimatePresence>
+      {dc.link ? (
+        <a href={dc.link} target="_blank" rel="noopener noreferrer" className="block cursor-pointer">{inner}</a>
+      ) : inner}
     </motion.div>
   );
 }
@@ -699,9 +706,9 @@ export default function StorefrontPage({
 
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="relative z-10 text-center max-w-2xl w-full">
           {creator.profileImage && creator.profileImage !== "/profile.jpg" && (creator.profileImage.startsWith("http") || creator.profileImage.startsWith("/uploads/")) ? (
-            <ClickableMedia url={creator.profileImage} alt={creator.name} className="mx-auto mb-5 sm:mb-6">
+            <div className="mx-auto mb-5 sm:mb-6">
               <img src={creator.profileImage} alt={creator.name} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-neon/50 neon-glow mx-auto" />
-            </ClickableMedia>
+            </div>
           ) : (
             <div className="mx-auto mb-5 sm:mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-dark-700 border-2 border-neon/50 flex items-center justify-center neon-glow">
               <span className="text-3xl sm:text-4xl font-bold text-neon">{creator.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>

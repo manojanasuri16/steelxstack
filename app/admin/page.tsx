@@ -1060,6 +1060,7 @@ function DiscountsTab({ codes, onChange }: { codes: DiscountCode[]; onChange: (c
             <Field label="Platform (optional)"><Input value={dc.platform || ""} onChange={(v) => update(dc.id, { platform: v || undefined })} placeholder="Lyfta, Myntra..." /></Field>
           </div>
           <Field label="Description"><Input value={dc.description} onChange={(v) => update(dc.id, { description: v })} placeholder="Get 10% off on all plans" /></Field>
+          <Field label="Link (optional)"><Input value={dc.link || ""} onChange={(v) => update(dc.id, { link: v || undefined })} placeholder="https://lyfta.app/steelx" /></Field>
           <Field label="Expires (optional)"><Input value={dc.expiresAt || ""} onChange={(v) => update(dc.id, { expiresAt: v || undefined })} placeholder="2026-04-30" type="date" /></Field>
           <div className="flex items-center justify-between">
             <Toggle checked={dc.active} onChange={(v) => update(dc.id, { active: v })} label="Active" />
