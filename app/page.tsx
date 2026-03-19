@@ -1,10 +1,14 @@
 import { getData } from "@/lib/storage";
+import { getStravaActivities } from "@/lib/strava";
 import StorefrontPage from "@/components/StorefrontPage";
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const data = await getData();
+  const [data, stravaActivities] = await Promise.all([
+    getData(),
+    getStravaActivities(10),
+  ]);
 
   return (
     <StorefrontPage
@@ -26,6 +30,7 @@ export default async function Home() {
       tip={data.tip || {}}
       sectionVisibility={data.sectionVisibility || {}}
       newsletterEnabled={data.newsletterEnabled ?? false}
+      stravaActivities={stravaActivities}
     />
   );
 }

@@ -1281,6 +1281,7 @@ const SECTION_KEYS: { key: keyof SectionVisibility; label: string; description: 
   { key: "contact", label: "Connect With Me", description: "Contact form + socials" },
   { key: "consultation", label: "Consultation / Booking", description: "1-on-1 coaching" },
   { key: "tip", label: "Tip / Support", description: "Support/donation section" },
+  { key: "strava", label: "Strava Activities", description: "Recent workouts from Strava" },
 ];
 
 function VisibilityTab({ visibility, onChange }: { visibility: SectionVisibility; onChange: (v: SectionVisibility) => void }) {

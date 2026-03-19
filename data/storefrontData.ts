@@ -187,6 +187,7 @@ export interface SectionVisibility {
   discountBanner?: boolean;
   consultation?: boolean;
   tip?: boolean;
+  strava?: boolean;
 }
 
 // ─── Default Data ───
